@@ -1,0 +1,68 @@
+---
+title: "google trends - us aus"
+author: "Zoe Meers"
+date: "7/3/2017"
+output: html_document
+---
+Reproducing Google Trends graphs found in report using gtrendsr package.
+
+```{r, include=FALSE}
+#devtools::install_github('PMassicotte/gtrendsR')
+```
+```{r, include=FALSE}
+library(gtrendsR)
+library(dplyr)
+
+library(ggplot2)
+library(extrafont)
+library(RColorBrewer)
+```
+
+```{r}
+US_trend <- gtrends(c("impeachment","LeBron James","North Korea","Overwatch"), geo="US", gprop="news")
+```
+
+
+```{r}
+USdf <- US_trend$interest_over_time
+USdf_clipped <- USdf %>%
+  filter(date > "2016-06-16" & date <"2017-06-04") #yyyy-mm-dd
+```
+```{r}
+library(reshape2)
+mdf <- melt(USdf,id.vars=c("date"))
+```
+
+
+```{r}
+ggplot(data=USdf_clipped,aes(x=date,y=hits,color=keyword)) +
+  geom_line(size=1.5)+ theme_light()+
+ labs(title = "US Google News Trends During Election and Trump\n Administration", x="Date", y="Number of Hits") + theme(text=element_text(size=14,  family="Times New Roman")) + scale_x_datetime(date_breaks = "2 month")
+ggsave("gtrends - US.jpg", last_plot())
+```
+
+```{r}
+Aus_trend <- gtrends(c("impeachment","Malcolm Turnbull","North Korea", "Overwatch"), geo="AU", gprop = "news")
+```
+
+```{r}
+AUSdf <- Aus_trend$interest_over_time
+AUSdf_clipped <- AUSdf %>%
+  filter(date > "2016-06-12" & date <"2017-06-04") #yyyy-mm-dd
+```
+
+```{r}
+library(reshape2)
+mdf1 <- melt(AUSdf,id.vars=c("date"))
+```
+
+
+```{r}
+#windowsFonts(Times=windowsFont("TT Times New Roman"))
+ggplot(data=AUSdf_clipped,aes(x=date,y=hits,color=keyword)) +
+  geom_line(size=1.5)+ theme_light() +
+  labs(title = "Australian Google News Trends During Election and Trump\n Administration", x="Date", y="Number of Hits") + theme(text=element_text(size=12,  family="Times New Roman")) + scale_x_datetime(date_breaks = "2 month") + scale_color_brewer(palette="Paired")
+ggsave("gtrends-Aus.jpg", last_plot())
+```
+
+
