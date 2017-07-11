@@ -1,0 +1,842 @@
+---
+title: "static graphs"
+author: "Zoe Meers"
+date: "11 July 2017"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tufte)
+library(kfigr)
+library(plyr)
+library(dplyr)
+library(grDevices)
+library(ggplot2)
+library(grid)
+
+library(htmlwidgets)
+library(highcharter)
+library(htmltools)
+library(yaml)
+
+Sys.setenv(TZ="Australia/Sydney")
+
+knitr::opts_chunk$set(tidy = FALSE, 
+                      echo=FALSE,
+                      ##cache.extra = packageVersion('tufte'),
+                      screenshot.opts=list(zoom=2),
+                      screenshot.force = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      crop=TRUE,
+                      dev="quartz_pdf",
+                      dpi=600,
+                      fig.ext="pdf")
+
+options(htmltools.dir.version = FALSE)
+
+
+
+ussc_lightBlue <- rgb(0,157,227,maxColorValue = 255)
+ussc_darkBlue <- rgb(28,57,110,maxColorValue = 255)
+ussc_red <- rgb(237,27,53,maxColorValue = 255)
+colorVector <- c("D"=ussc_lightBlue,"R"=ussc_red)
+colorVector2 <- c("Dem"=ussc_lightBlue,"Rep"=ussc_red)
+
+ussc_lightBlue_alpha <- rgb(0,157,227,alpha=185,maxColorValue = 255)
+ussc_darkBlue_alpha <- rgb(28,57,110,alpha=185,maxColorValue = 255)
+ussc_red_alpha <- rgb(237,27,53,alpha=185,maxColorValue = 255)
+
+univers <- quartzFont(paste("Univers LT Std",
+                            c("55 Roman","65 Bold","55 Oblique","65 Bold Oblique")))
+
+universCondensed <- quartzFont(paste("Univers LT Std",
+                            c("57 Condensed","67 Bold Condensed",
+                              "57 Condensed Oblique","67 Bold Condensed Oblique")))
+
+quartzFonts(univers=univers)
+quartzFonts(universCondensed=universCondensed)
+
+
+mytheme <- theme_bw(base_family="univers") + 
+  theme(plot.margin = unit(c(2,2,2,2),"pt"),
+        text=element_text(family="univers"),
+        strip.text = element_text(size=9),
+        axis.title.x = element_text(size=9,family = "univers"),
+        axis.title.y = element_text(size=9,family="univers"),
+        axis.text.x = element_text(size = 9),
+        axis.text.y = element_text(size = 7),
+        legend.text = element_text(size=9,family="univers"),
+        legend.title = element_text(size=9,family="univers"),
+        legend.key.size = unit(x = 9,units = "pt")
+        )
+
+```
+
+## Presidental approval: Nixon, Clinton and Trump
+
+In `r figr('pres_approval',TRUE,link=FALSE,type='Figure')` we contrast levels of presidential approval for Nixon and Clinton, as measured by Gallup surveys, highlighting the periods when Congress was actively considering impeachment for both presidents.   Approval for Donald Trump is also shown (in red), time shifted so as to align with the corresponding point of the Nixon and Clinton presidential terms, respectively.
+
+`r margin_note(paste(figr('pres_approval',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump (overlaid in red, time-shifted to align with corresponding point of their respective presidential terms).  Shaded areas indicate time interval when Congress was considering impeachment and/or Senate trial (Clinton).",sep=": "))`
+
+```{r pres_approval}
+##fig.cap=paste(figr('pres_approval',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump (overlaid in red, time-shifted to align with corresponding point of their respective presidential terms).  Shaded areas indicate time interval when Congress was considering impeachment and/or Senate trial (Clinton).",sep=": ")} 
+nixon <- scan(file="~/Trump-Impeachment/Nixon/approval.txt",
+              strip.white = TRUE,
+              what=list(startDate="",endDate="",
+                        approve=0,disapprove=0,dk=0))
+nixon <- as.data.frame(nixon)
+names(nixon) <- c("startDate","endDate","approve","disapprove","dk")
+nixon$startDate <- as.Date(nixon$startDate,format="%m/%d/%Y")
+nixon$endDate <- as.Date(nixon$endDate,format="%m/%d/%Y")
+nixon$midDate <- nixon$startDate + (nixon$endDate-nixon$startDate)/2
+nixon$who <- "Nixon"
+
+nixon.inaug <- as.Date("1969-01-20")
+
+## Clinton
+load("~/Trump-Impeachment/Clinton/approval.RData")
+clinton$who <- "Clinton"
+clinton.inaug <- as.Date("1993-01-20")
+
+## Trump
+load("~/Trump-Impeachment/Trump/approval.RData")
+approval$who <- "Trump"
+trump.inaug <- as.Date("2017-01-20")
+
+## stack for plotting
+plotData <- rbind.fill(list(nixon,clinton,approval))
+
+mytheme <- hc_theme(
+  chart = list(
+    style=list(
+      fontFamily="Univers LT Std"
+      )
+  ),
+  xAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Univers LT Std"
+      )
+    )
+  ),
+  yAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Univers LT Std"
+      )
+    )
+  )
+)
+
+hc <- highchart(width="500px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=nixon,
+                name="Nixon",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_lightBlue,
+                mapping=hcaes(x=midDate,
+                              y=approve)) %>%
+    hc_add_series(data=subset(approval,survey_house=="Gallup"),
+                  enableMouseTracking=FALSE,
+                name="Trump",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                mapping=hcaes(x=midDate-trump.inaug+nixon.inaug,
+                              y=as.numeric(Approve)))
+
+hc <- hc %>% 
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Nixon",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           plotBands = list(
+             list(from=datetime_to_timestamp(as.Date("1973-10-30")),
+                  to=datetime_to_timestamp(as.Date("1974-07-30")),
+                  color="rgba(100,0,0,0.1)",
+                  label=list(text="House<br>Judiciary<br>Committee<br>investigation<br>and<br>hearings",
+                             useHTML=TRUE,
+                             align="left")
+             )
+           ),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=20,max=80,startOnTick=TRUE,
+           tickPositions=seq(20,80,by=10),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+
+hc_nixon <- hc
+
+## Clinton
+rm(hc)
+hc <- highchart(width="500px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=clinton,
+                name="Clinton",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_lightBlue,
+                mapping=hcaes(x=midDate,y=as.numeric(approve))) %>%
+  hc_add_series(data=subset(approval,survey_house=="Gallup"),
+                name="Trump",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                enableMouseTracking=FALSE,
+                mapping=hcaes(x=midDate-trump.inaug+clinton.inaug,
+                              y=as.numeric(Approve)))
+
+hc <- hc %>% 
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Clinton",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             useHTML=TRUE,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           plotBands = list(
+             list(from=datetime_to_timestamp(as.Date("1998-09-09")),
+                  to=datetime_to_timestamp(as.Date("1999-02-12")),
+                  color="rgba(100,0,0,0.1)",
+                  label=list(text="Impeachment deliberations<br>and Senate trial",
+                             useHTML=TRUE,
+                             align="right",
+                             textAlign="left"
+                  )
+             )
+           ),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=20,max=80,startOnTick=TRUE,
+           tickPositions=seq(20,80,by=10),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+hc$width <- 600
+
+hc_clinton <- hc
+
+mygrid <- function (..., ncol = NULL, rowheight = NULL) 
+{
+  require(purrr)
+    input_list <- as.list(substitute(list(...)))[-1L]
+    params <- list()
+    for (i in 1:length(input_list)) {
+        x <- eval.parent(input_list[[i]])
+        if (any(class(x) == "list")) {
+            for (j in 1:length(x)) {
+                y <- eval(x[[j]])
+                params[[length(params) + 1]] <- y
+            }
+        }
+        else {
+            params[[length(params) + 1]] <- x
+        }
+    }
+    if (!all(sapply(params, function(x) inherits(x, "htmlwidget")))) 
+        stop("All parameters must be htmlwidget objects")
+    if (is.null(ncol)) 
+        ncol <- n2mfrow(length(params))[1]
+    if (ncol > 12) 
+        ncol <- 12
+    ncolm <- floor(ncol/2)
+    divs <- map(params, function(x) {
+        x$width <- "65%"
+        if (!is.null(rowheight)) 
+            x$height <- rowheight
+        tags$div(class = sprintf("col-1-%s mobile-col-1-%s", 
+            ncol, ncolm), x)
+    })
+    divgrid <- tags$div(class = "grid grid-pad", style = "width: 100%", 
+        divs)
+    class(divgrid) <- c(class(divgrid), "htmlwdwtgrid")
+    divgrid
+}
+
+foo <- mygrid(hc_nixon,
+               hc_clinton,
+               ncol=1,
+               rowheight=400)
+
+saveWidget(hc_nixon,file="hc_nixon_01.html",selfcontained = FALSE)
+saveWidget(hc_clinton,file="hc_clinton_01.html",selfcontained = FALSE)
+
+print(foo)
+```
+```{r}
+str()
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(nixon)+ geom_line(aes(x=midDate, y=approve)) + ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + scale_y_continuous(limits = c(20, 80))
+
+#("1998-09-09")),
+#                  to=datetime_to_timestamp(as.Date("1999-02-12")),
+##+ geom_line(aes(x=midDate-trump.inaug+nixon.inaug, y=approve))
+
+```
+```{r}
+ggplot() + geom_rect(data=clinton, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1998-09-09", "%Y-%m-%d"), xmax=as.Date("1999-02-12", "%Y-%m-%d"), fill=c("red")),alpha=0.02) + geom_line(data=clinton, aes(x=midDate, y=as.numeric(approve))) + ggtitle("Clinton") + xlab("Year") + ylab("Approval Rating (%)") +  scale_x_date(date_labels= "%y", date_breaks = "1 year") + scale_y_continuous(limits = c(20, 80)) +  annotate("text",x=as.Date("2000-01-01", "%Y-%m-%d"), y=80, label="Impeachment deliberation\n and Senate trial", size=2.5) + theme(legend.position = "none")
+```
+```{r}
+class(clinton$midDate)
+```
+
+The collapse in Nixon's standing with the American public over calendar year 1973 is stark and a critical precursor to the House Judiciary Committee pursuing Nixon's impeachment.  At the time of Nixon's reinauguration in January 1973, his approval ratings stood at 66%, the highest approval rating Gallup recorded for Nixon. Recall that throughout 1973 Nixon aides were resigning or being fired, the Senate "Watergate Committee" held sensational, televised hearings in May, and Nixon attempted top shut down the Watergate investigation in the "Saturday Night Massacre" (20 October).   By July 1973, Nixon's approval ratings had dropped below 40% and continued to fall below 30% by October.  Nixon's approval ratings remained mired in the 20-30 percent range as the House Judiciary Committee conducted its investigation.   Nixon's last 10 months in office saw him with approval ratings never above the high 20s, a testament to his dwindling political capital and a strong indicator that conviction and removal from office would be the result of impeachment.
+
+In contrast, Bill Clinton's approval ratings had been gradually increasing from the summer of 1994 onwards.   By early 1998, Clinton was recording 60% approval ratings in Gallup polls.  The Gallup poll conducted immediately after the Lewinsky scandal --- and Clinton's famous televised denial --- showed a nine point *increase* in Clinton's approval ratings.  Throughout 1998, even as Starr's investigation reached its crescendo --- questioning Lewinsky in July and August of 1998 --- Clinton's approval ratings remained at or above 60%.  The delivery and publication of Starr's report and Clinton's impeachment by the House of Representatives did nothing to dent his approval ratings.   A Gallup poll fielded as the House impeached Clinton found his approval ratings to be 73%, a ten point increase on the preceeding Gallup poll.  Throughout Clinton's trial in the Senate his approval ratings stayed above 65%.  By 2000, Clinton's approval rating was around 60%; a post-election bump saw the outgoing, two-term president leave office with approval ratings in high 60s.  
+
+The contrast with Nixon's case could not be more stark.   Clinton could be confident of staring down impeachment by the Republican controlled House of Representatives, secure in the knowledge that with approval ratings in the high 60s --- and sometimes higher --- Democratic Senators would not vote to convict.   Indeed, no Democratic senator voted for Clinton's conviction.   
+
+## In-party versus out-party support
+
+A critical element of political support for a president is the distinction between approval among partisans of the president's party, among independents and among partisan of the "out-party".   Few presidents have high levels of approval from out-party partisans, a tendency that has become more pronounced over time, as levels of partisan and ideological polarization have risen in the United States. The average difference in presidential approval ratings between Democrats and Republicans has increased from a range of 26 to 40 points under Eisenhower to Carter, to 52 points under Reagan, 55 points under Clinton, 60 points under George W. Bush and 71 points under Obama.   The first months of Trump's presidency have produced a 77 point average inter-party difference in approval ratings for Trump, an unprecedented level of partisan polarization with in presidential approval.^[We thank Professor Gary Jacobson (University of California, San Diego) for providing these data.]  
+
+Of critical importantance in thinking through the political logic of impeachment is the standing of the president with partisans of the president's party.   Recall that while a majority vote of the House is required to impeach a president, conviction and removal from office requires a two-thirds vote of the Senate.   Even if the out party has a simple majority in both House and Senate (as was the case for Nixon and Clinton), removal from office can only result when substantial numbers of legislators from the president's party are of the same view.   In turn, this suggests that polling data tapping the president's approval among partisans of the president's party are a critical barometer of the chances that a president will be impeachment or removed from office.
+
+`r margin_note(paste(figr('pres_approval_pid',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump, by party identification of respondent.",sep=": "))`
+
+In `r figr('pres_approval_pid',TRUE,link=FALSE,type='Figure')` we present levels of approval for Nixon, Clinton and Trump, broken by levels of party identification.   The precipitious slide in Nixon's approval ratings through 1973 occurs across all partisan groups, but is especially pronounced among Independents.   Republicans begin 1973 with approval ratings of Nixon of around 90%, as Nixon was reinauguarted after the 1972 election.   By the the time of House Judiciary Committee investigation in late 1973, Nixon's in-party approval rating had dropped to below 60%, reaching 50% by the time the Committee adopted articles of impeachment against Nixon.  This made Nixon especially vulnerable once the the "smoking gun" conversation was made public, with support among Republicans insufficient to stave off a two-thirds vote for conviction had impeachment proceeded to the Senate.   
+
+```{r}
+app.pid <- readxl::read_excel(path="../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
+names(app.pid)[1] <- "date"
+
+hc <- highchart(width="500px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
+                name="Republicans",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=rep_app)) %>%
+  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
+                name="Independents",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=gray(.35),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=ind_app)) %>%
+  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
+                name="Democrats",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_darkBlue,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=dem_app)) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Nixon",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           plotBands = list(
+             list(from=datetime_to_timestamp(as.Date("1973-10-30")),
+                  to=datetime_to_timestamp(as.Date("1974-07-30")),
+                  color="rgba(100,0,0,0.1)",
+                  label=list(text="House<br>Judiciary<br>Committee<br>investigation<br>and<br>hearings",
+                             useHTML=TRUE,
+                             align="left")
+             )
+           ),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=0,max=100,startOnTick=FALSE,
+           tickPositions=seq(0,100,by=10),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+
+hc_nixon <- hc
+
+## Clinton
+hc <- highchart(width="500px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
+                name="Republicans",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=rep_app)) %>%
+  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
+                name="Independents",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=gray(.35),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=ind_app)) %>%
+  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
+                name="Democrats",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_darkBlue,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=dem_app)) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Clinton",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+    hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           plotBands = list(
+             list(from=datetime_to_timestamp(as.Date("1998-09-09")),
+                  to=datetime_to_timestamp(as.Date("1999-02-12")),
+                  color="rgba(100,0,0,0.1)",
+                  label=list(text="Impeachment deliberations<br>and Senate trial",
+                             useHTML=TRUE,
+                             verticalAlign="bottom",
+                             y=8,
+                             align="right",
+                             textAlign="left"
+                  )
+             )
+           ),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=0,max=100,startOnTick=FALSE,
+           tickPositions=seq(0,100,by=10),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+
+hc_clinton <- hc
+
+## Trump
+hc <- highchart(width="500px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Republicans",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=rep_app)) %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Independents",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=gray(.35),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=ind_app)) %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Democrats",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_darkBlue,
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=dem_app)) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Trump",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+    hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=0,max=100,startOnTick=FALSE,
+           tickPositions=seq(0,100,by=10),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+
+hc_trump <- hc
+
+foo <- mygrid(hc_nixon,
+               hc_clinton,
+              hc_trump,
+               ncol=1,
+               rowheight=500)
+
+
+saveWidget(hc_nixon,file="hc_nixon_02.html",selfcontained = FALSE)
+saveWidget(hc_clinton,file="hc_clinton_02.html",selfcontained = FALSE)
+saveWidget(hc_trump,file="hc_trump_02.html",selfcontained = FALSE)
+
+knit_print(foo)
+```
+
+Clinton never received high levels of support from Republicans, averaging a 27% approval rating from Republicans over the eight years of his presidency.   Imoprtantly, as the Republican controlled House moved to imepach Clinton, his approval rating among Democrats continued to climb, sitting in the high 80% to low 90% in late 1998 into early 1999.  During Clinton's trial in the Senate, Democrats gave Clinton approval ratings of 94%, among the very highest in-party approval ratings observed over the sixty four years of Gallup approval data.  Roughly two-thirds of political independents approved of Clinton's performance through this period, further evidence of the fact that there was no meaningful political appetite for removing Clinton from office outside of the Republican party.   
+
+These historical comparisons help us put Trump's approval ratings in context.   To be sure, Trump's overall approval ratings are not high, especially relative to other presidents at this early stage of a presidential term.  Trump's approval numbers have fallen slightly over his term thus far, but the bulk of that movement has come from Democrats and Independents.   Since late April 2017, less than 10% of Democrats have approved of Trump; political independents rate Trump in the low 30s, down from high 30s to 40% earlier shortly after Trump's inauguration.   Republican support for Trump has cooled somewhat, but continues to be overwhelmingly positive, sitting somewhere in the low to mid 80s in the last month of polls, down from the high 80s recorded in the opening months of his presidency.   
+
+`r margin_note(paste(figr('pres_approval_pid',TRUE,link=FALSE,type='Figure'),"Presidential approval among in-party partisans, as measured in Gallup surveys, Trump compared with other presidents at comparable stage of their respective presidencies.",sep=": "))`
+
+```{r}
+## fix app.pid codings of when presidents start
+app.pid <- readxl::read_excel(path="../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
+names(app.pid)[1] <- "date"
+
+app.pid$President[app.pid$date>as.Date("1963-12-08") & app.pid$date<as.Date("1969-01-21")] <- 3 ## Johnson
+app.pid$President[app.pid$date>as.Date("1977-01-20") & app.pid$date<as.Date("1981-01-20")] <- 6 ## Carter
+app.pid$President[app.pid$date>as.Date("1981-01-20") & app.pid$date<as.Date("1989-01-20")] <- 7 ## Reagan
+app.pid$President[app.pid$date>as.Date("1989-01-20") & app.pid$date<as.Date("1993-01-20")] <- 8 ## Bush
+
+app.pid$inparty_app <- rep(NA,dim(app.pid)[1])
+app.pid$inparty_app[app.pid$President==1] <- app.pid$rep_app[app.pid$President==1] ## Ike
+app.pid$inparty_app[app.pid$President==2] <- app.pid$dem_app[app.pid$President==2] ## JFK
+app.pid$inparty_app[app.pid$President==3] <- app.pid$dem_app[app.pid$President==3] ## LBJ
+app.pid$inparty_app[app.pid$President==4] <- app.pid$rep_app[app.pid$President==4] ## RMN
+app.pid$inparty_app[app.pid$President==5] <- app.pid$rep_app[app.pid$President==5] ## Ford
+app.pid$inparty_app[app.pid$President==6] <- app.pid$dem_app[app.pid$President==6] ## Carter
+app.pid$inparty_app[app.pid$President==7] <- app.pid$rep_app[app.pid$President==7] ## Reagan
+app.pid$inparty_app[app.pid$President==8] <- app.pid$rep_app[app.pid$President==8] ## GHWB
+app.pid$inparty_app[app.pid$President==9] <- app.pid$dem_app[app.pid$President==9] ## WJC
+app.pid$inparty_app[app.pid$President==10] <- app.pid$rep_app[app.pid$President==10] ## W
+app.pid$inparty_app[app.pid$President==11] <- app.pid$dem_app[app.pid$President==11] ## Obama
+app.pid$inparty_app[app.pid$President==12] <- app.pid$rep_app[app.pid$President==12] ## Trump
+
+inaug.dates <- as.Date(c("1953-01-20","1961-01-20","1963-11-22",
+                       "1969-01-20","1974-08-09",
+                       paste(c(1977,1981,1989,1993,2001,2009,2017),
+                             "-01-20",sep="")))
+app.pid <- ddply(app.pid,.(date),
+                 summarise,
+                 date=date[1],
+                 President=President[1],
+                 inparty_app=mean(inparty_app))
+
+
+presName <- c("Ike","JFK","LBJ",
+              "Nixon","Ford","Carter",
+              "Reagan","GHWB","Clinton",
+              "GWB","Obama","Trump")
+
+app.pid <- merge(app.pid,
+                 data.frame(idate=as.POSIXct(inaug.dates),
+                            presName=presName,President=1:12),
+                 by="President")
+
+app.pid <- app.pid %>%
+  group_by(President) %>%
+  mutate(dop = as.numeric(date - idate)) %>%
+  ungroup()
+
+dop.max <- max(app.pid$dop[app.pid$President==12]) + 5
+
+app.pid <- subset(app.pid, dop <= dop.max)
+```
+
+```{r early_inparty_approval}
+hc <- highchart(width="800px",height="800px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+
+for(i in 1:11){
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==i & 
+                              date >= inaug.dates[i] & 
+                              dop <= dop.max),
+                name=presName[i],
+                showInLegend=FALSE,
+                type = "line",
+                step="left",
+                linecap="square",
+                color="rgba(0,0,20,.25)",
+                marker=list(),
+                states=list(hover=list(lineColor="black",
+                                       lineWidthPlus=7)),
+                mapping=hcaes(x=datetime_to_timestamp(inaug.dates[12]) + 
+                                datetime_to_timestamp(date) - 
+                                datetime_to_timestamp(inaug.dates[i]),
+                              y=inparty_app))
+}
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Trump",
+                showInLegend=FALSE,
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc_red,
+                lineWidth=9,
+                marker=list(symbol="circle",
+                            radius=0,
+                            lineWidth=0,
+                            states=list(hover=list(radiusPlus=9,
+                                                   fillColor="black",
+                                                   lineColor="white",
+                                                   lineWidthPlus=3)
+                                        )
+                            ),
+                states=list(hover=list(lineWidthPlus=3)),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=inparty_app)
+  ) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{series.name}: {point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           dateTimeLabelFormats=list(day="%d %b",
+                                     week="%e %b"),
+           minRange=1,
+           minPadding=0,
+           maxPadding=0,
+           crosshair=TRUE,
+           min=datetime_to_timestamp(inaug.dates[12]),
+           max=datetime_to_timestamp(max(app.pid$date) + 3*24*3600),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=55,max=95,
+           startOnTick=FALSE,
+           tickPositions=seq(55,95,by=5),
+           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
+
+knit_print(hc)
+
+saveWidget(hc,file="hc_03.html",selfcontained = FALSE)
+
+```
+
+This level of in-party support is typical for presidents in recent decades, as depicted in `r figr('pres_approval_pid',TRUE,link=FALSE,type='Figure')`.   Trump enjoys levels of support from Republicans that are indistinguishable from the levels of in-party support LBJ, Nixon, and Reagan had at the comparable stage of their presidencies.   Trump is underperforming Obama and George W. Bush, but overperforming Carter, Ford and Clinton.  In short, there is nothing especially noteworthy about the high levels of in-party support Trump currently has.   Like almost all presidents early in their first term, the president's fellow partisans overwhelmingly support the incumbent president.   These approval data strongly suggest that Trump will not face an impeachment threat in the current Congress.      
+
+# Mueller's investigation: a wildcard?
+
+Our conclusion that impeachment of Trump seems unlikely is conditioned not just on the partisan balance of Congress, but also the current set of "facts on the ground", what is accepted as "fact" with respect to Trump, ties between his associates and Russia and what Trump may or may not have done with respect to the FBI investigation of these matters.   At the time of writing, our assessment is that the established set of facts are insufficient to disrupt the bedrock of Republican support for Trump.
+
+Our close examination of the Nixon and Clinton cases suggest that we ought to qualify this conclusion, noting that Special Counsel Mueller's investigation is just months old.   At the same stage of Starr's investigations into Clinton --- or the various Watergate investigations --- the eventual outcome was far from known.   The fact that Republicans control both houses of Congress surely provides a vital political backstop for Trump, placing him in a far stronger position *a priori* than either Nixon or Clinton.   Nonetheless, just months into the Watergate matter, it was not at all clear that Nixon would resign nineteen months into his second term with impeachment a political certaintyand removal from office not far behind. 
+
+What changed for Nixon between his inauguration in January 1973 and his resignation in August of 1974?   The answer lies with the steady release of information about the extent of Nixon's involvement not with the Watergate break-in, but its cover-up, driven by (1) investigative reporting and leaks to the media, especially Woodward and Bernstein at the *Washington Post*; (2) multiple investigations into the Watergatre break-in, connections to the White House and Nixon's involvement in any cover-up, from (a) Judge Sirica, Chief Judge of United States District Court for the District of Columbia; (b) the Senate "Watergate Committee" and its sensational, televised hearings through the summer of 1973; (c) the investigation of Special Prosecutor Archibald Cox (appointed in May 1973) and his successor after the "Saturday Night Massacre", Leon Jaworski; (d) the investigation of the House Judiciary Committee.   Turning points were the testimony of Nixon aide John Dean to the Senate's Watergate Committee, Nixon's attempt to shut down the Special Prosecutor's investigation in the "Saturday Night Masasacre" and the Supreme Court ruling that subpoeanas for the White House taped conversations were not subject to executive privilege.  As the extent of Nixon's personal involvement with the Watergate cover-up were revealed, Republican support faltered and finally buckled.   
+
+Thus, logic would dictate that we concede that there is a possible path to Trump's impeachment, depending on what Special Counsel Robert Mueller and other investigations reveal.  We do not claim any special insight into what Trump may or may not have done.  Our position is simply that the probability of Trump being removed from office isn't zero, just very close to it. While Mueller's and Congressional investigations continue, the possibility of impeachment --- however *a priori* politically improbable --- has to be entertained.
+
+## The special counsel's powers of investigation
+
+Note too the long arc connecting Watergate to Mueller's investigation.   In response to the Watergate scandal --- and Nixon's attempt to terminate the Special Prosecutor's investigation of the Watergate --- Congress passed the *Ethics in Government Act* of 1977, signed into law by President Carter.   This Act created the Office of Independent Counsel, designed to operate at arm's length from the executive branch, to undertake investigations where the Justice Department would have a clear conflict of interest.  The *locus classicus* contemplated by the Act would be *a la* Watergate, where it was necessary to undertake an investigation of allegations of criminal wrongdoing by a close political associate of the Attorney-General, such as the President or persons close to the President, where the Attorney-General would have a clear conflict of interest.^[See the Appendix for details.]   
+
+This Act provided the framework for investigations of the Reagan administration's involvement in the Iran-Contra scandal. This investigation [incurred $48.5 million in expenses](http://www.pbs.org/wgbh/pages/frontline/shows/counsel/office/history.html) and resulted in eleven convictions.  Presidential pardons saw none of those convicted face imprisonment.   The cost of the investigation, frustration as to its political motivations and perceived ineffectiveness saw enthusiasm for the Office of Independent Counsel wane.  
+
+The legislation establishing the Office of Independent Counsel was due to expire in 1992.   Ironically, President Clinton supported and signed the [Independent Counsel Reauthorization Act of 1994](https://www.gpo.gov/fdsys/pkg/BILLS-103s24enr/pdf/BILLS-103s24enr.pdf).  Under this legislation, the Attorney-General would request a panel of three judges --- a "[Special Division](http://www.pbs.org/wgbh/pages/frontline/shows/counsel/office/special.html)" of the D.C. Circuit of the Federal judiciary^[Its members selected by the Chief Justice of the Supreme Court.] --- to choose an independent counsel. A president could not dismiss an independent counsel, who enjoyed a high degree of autonomy and secrecy with respect to the conduct of the investigation, resources and staffing.   Independent counsel were obliged to report to Congress at least annually on their progress and had discretion on what and when to disclose to the public.  The independent counsel had the authority to transmit to Congress any information he or she deemed relevant.  Importantly, the Act required the independent counsel to "advise the House of Representatives of any substantial and credible information...that may constitute grounds for an impeachment."^[28 U.S.C. $\S$ 595(c). A thorough review of the law governing the Office of Independent Counsel at the time is Benjamin J. Priesier, Paul G. Rozelle, Mirah A. Horowitz, "The Independent Counsel Statute: A Legal History", [*Law and Contemporary Problems*](http://www.law.duke.edu/journals/62LCPPriester), 62(1): 5-109 (Winter 1999).]   It was under this Act that Kenneth Starr was appointed to investigate various allegations against Clinton and his associates, ultimately resulting in the investigation of the Lewisinsky matter *inter alia* and Clinton's impeachment in late 1998.   
+
+A sunset clause in the 1994 legislation saw the Office of Independent Counsel wind down with the end of the Starr investigation.   Congress had very little appetite for empowering investigators with as much independence as Starr enjoyed as Independent Counsel.   Instead, Justice Department investigations of the president and close associates of the president now occur via a "Special Counsel", under rules set out in the U.S. Code of Federal Regulations, Chapter 6. It is under [these rules](https://www.gpo.gov/fdsys/pkg/FR-1999-07-09/pdf/99-17327.pdf#page=5) that [Acting Attorney General Rod Rosenstein appointed Robert Mueller](https://www.justice.gov/opa/pr/appointment-special-counsel).
+
+Mueller has considerable autonomy and discretion --- the same investigative and prosecutorial functions of a U.S. Attorney --- but far less so than Ken Starr had as Independent Counsel.   For instance, the Special Counsel's investigation can be expanded only when the Attorney General^[Or in this case, the Deputy Attorney General, since Attorney-General Sessions has recused himself from the investigation of ties between Trump associates and the Russian government.] deems it necessary "in order to fully investigate and resolve the matters assigned, or to investigate new matters that come to light in the course of the investigation."  
+
+Before the start of the U.S. government's fiscal year on 1 October, the Special Counsel must request reauthorization from the Attorney General, who determines what is an appropriate budget.   Unlike Starr --- who operated under court supervision and reported to Congress --- Mueller reports to the Justice Department.   In particular, Mueller is required to file ["Urgent Reports"](https://www.justice.gov/usam/usam-1-13000-urgent-reports) notifying the Justice Department of "major developments" in any investigation that is "likely to receive national media coverage or Congressional attention".
+
+Note too that
+
+> [a]t the end of an investigation... the special counsel submits a confidential report to the attorney general, who in turn must report to the chair and ranking member of the House and Senate Judiciary Committees. The attorney general must tell those lawmakers whether he blocked the special counsel from pursuing any investigative or prosecutorial step. But note that the lawmakers learn this only at the end of the special counsel's tenure. The attorney general also decides what parts, if any, of the final confidential report should be made public.^[Daniel Hemel, "Free Robert Mueller: here's how to make his investigation truly independent", [*Vox*](https://www.vox.com/the-big-idea/2017/5/24/15682544/mueller-comey-independent-investigation-special-counsel), 29 May 2017.]
+
+It is plausible that the Justice Department might well refer any additional allegations of wrong-doing by Trump to Mueller --- or that Mueller might request an expansion of his remit ---in the same way that Starr was referred additional matters beyond Whitewater.  But our best guess is that Mueller's investigation will not go on for years, like Starr's, or even the investigations of Special Prosecutors Cox and Jaworski in the Watergate investigation.   
+
+Overarching all of these considerations about Mueller's powers is the political backstop of a Republican-controlled Congress.  Mueller could bring prosecutions against members of the the Trump campaign and administration, or not.  Mueller could make adverse findings against Trump --- that Trump engaged in conduct that constitutes grounds for impeachment --- or not.   But ultimately, the question of impeachmeant remains where it has always resided, with Congress.
+
+# Conclusion
+
+The intensely political nature of impeachment --- coupled with historically high levels of partisanship in contemporary American politics --- makes it extremely unlikely that Trump will be impeached.   
+
+At least a few things need to happen to alter our assessment.  
+
+First, either the investigation by Special Counsel Mueller or by one of the other investigations around Trump's ties to Russia's attempts to sway the 2016 election outcomes needs to reveal facts that damage Trump among Republicans partisans and Republican members of Congress.   
+
+Second, it is possible that independent of any findings or allegations brought via any of the extant investigations, Trump's standing with Republicans falters, eroding his political capital and making Republicans more recepitive to calls for Trump's impeachment.  Here we again note that Trump currently has an approval rating among Republicans in high 80% range.   Until Republican support for Trump drops precipitiously --- closer to the 50% levels recorded by Nixon towards the end of his presidency --- impeachment would seem out of the question.
+
+Alternatively, the partisan composition of both the House of Representatives and the Senate could tilt back towards Democrats at the 2018 midterm elections, putting the votes for impeachment within closer reach.  There are currently 193 Democrats in the House of Representatives.   Twenty-five Republicans would have to join every Democrat in an impeachment vote in the House for it to succeed. Alternatively, Democrats would have to win 25 Republican seats at the 2018 midterm elections in order to form a majority, allowing Democrats to carry an impeachment motion without Republican votes.   Even then, a Senate trial would require 67 votes for conviction and removal from office.  Under any reasonable assumption about the partisan composition of  the U.S. Senate after the 2018 elections --- and most forecasts do not see Democrats gaining Senate seats at this stage^[In fact, Democrats could well *lose* seats in 2018, with five seats considered at risk: Indiana, Missouri, Montana, North Dakota and Virginia.] --- a sizeable number of Republican Senators would have to support conviction if Trump was to be removed from office.
+
+These scenarios are speculative, perhaps even far-fetched.  Accordingly --- at least for the time being --- impeaching Trump seems extremely unlikely.
+
+# Appendix: the long road to the impeachment of Bill Clinton
+
+## Whitewater and Vince Foster
+Whitewater was a failed real estate venture in Arkansas, a partnership between the Clintons and James McDougal (a political backer of the Bill Clinton) and his then wife Susan, dating to 1978.   An investigation by the *New York Times*^[Jeff Gerth, "The 1992 Campaign: Personal Finances; Clintons Joined S.& L. Operator In an Ozark Real-Estate Venutre", [*New York Times*](http://www.nytimes.com/1992/03/08/us/1992-campaign-personal-finances-clintons-joined-s-l-operator-ozark-real-estate.html).] revealed (a) irregularities in documents and tax filings detailing the Clintons' stake in the venture; (b) the possibility that as Governor of Arkansas, Clinton gave favourable treatment to McDougal's savings and loan association^[Or S&L; in Australian parlance, a bank.], a venture that subsequently failed; (c) that the savings and loan was exposed to the Whitewater venture and made payments to reduce the Clinton's exposure; (d) that as a partner at the Rose Law firm, Hillary Clinton drafted advice to the struggling S&L to help it avoid closure by the state of Arkansas.  
+
+The *New York Times* article was published on 8 March 1992, well before Clinton had secured the Democratic nomination for the election to be held in November of that year, which Clinton of course won.   Clinton was inaugurated on 20 January 1993.   On 20 July 1993, deputy White House counsel Vince Foster committed suicide.  Foster had been a partner at the Rose Law Firm and a colleague of Hillary Clinton and had handled Whitewater-related matters on behalf of the Clintons.   
+
+Foster's suicide - later ruled a result of depression - renewed interest in Whitewater and the role of the Clintons.   Political pressure continued to mount.  Claims of a conspiracy mounted, fuelled by speculation about the circumstances of Foster's death and the propriety of financial dealings between the Clintons and business figures in Arkansas.^[i.e., the so-called "cattle futures" controversy, again reported by Jeff Gerth of the [*New York Times*](http://www.nytimes.com/1994/03/18/us/top-arkansas-lawyer-helped-hillary-clinton-turn-big-profit.html).]  Of particular interest was the fact that Foster was in possession of Whitewater-related documents at the time of his death (held at his White House office) and that those documents were transferred to other parties in the White House.  The White House acknowledged the presence of the documents at the White House on 20 December 1993.
+
+On 12 January 1994, President Clinton asked Attorney-General Janet Reno to appoint a special counsel, taking over a Justice Department investigation of the financial dealings of parties in Arkansas, including the Clintons' associates. Reno appointed Robert Fiske on 20 January 1994^[Stephen Labaton, "Reno Is Said to Choose New Yorker as Counsel", [*New York Times*](http://www.nytimes.com/1994/01/20/us/reno-is-said-to-choose-new-yorker-as-counsel.html), 20 January 1994.], with a mandate to investigate if crimes had been committed relating to the Clintons' relationships with McDougal's S&L and the Whitewater venture.  Fiske also re-examined the death of Vince Foster.  On 30 June 1994, Fiske issued an interim report, finding no improper ties between the Clintons and McDougal's S&L and that Foster's death was a suicide.
+
+<!-- In an interesting twist, this was the same day that the statute governing special prosecutors expired^[The [Ethics in Government Act of 1978](https://www.gpo.gov/fdsys/pkg/STATUTE-92/pdf/STATUTE-92-Pg1824.pdf).], which had been originally passed by a Democratic Congress under the Carter administration in response to the Watergate crisis.   Previously, in December of 1992, the law authorizing independent counsels had expired; Republicans were not eager to renew an office that had vigorously pursued the Iran-Contra matter under the Reagan administration.  Clinton had previously voiced his support for reinstating the Office of the Independent Counsel, and now, with Whitewater firmly on the national agenda, Republicans enthusiastically agreed.    -->
+
+## The Office of the Independent Counsel
+President Clinton signed the [Independent Counsel Reauthorization Act of 1994](https://www.gpo.gov/fdsys/pkg/BILLS-103s24enr/pdf/BILLS-103s24enr.pdf) on 1 July.  In large measure this Act revived the [Ethics in Government Act of 1978](https://www.gpo.gov/fdsys/pkg/STATUTE-92/pdf/STATUTE-92-Pg1824.pdf), which created the Office of the Independent Counsel and had been originally passed by a Democratic Congress under the Carter administration in response to the Watergate crisis.   The Act had been amended in 1983 and 1987, but allowed to expire in December 1992; Republicans had not been eager to renew an office that had vigorously pursued the Iran-Contra matter under the Reagan administration and the constitutionality of the Act's provisions had been vigorously challenged before the Supreme Court.^[*Morrison v. Olson* [487 U.S. 654](https://supreme.justia.com/cases/federal/us/487/654/) (1988).  Justice Scalia's dissent drew attention to the extraordinary investigative and prosecutorial powers given to the independent counsel, powers typically reserved for the executive.]  Clinton had previously voiced his support for reinstating the OIC, and now, with Whitewater firmly on the national agenda, Republicans enthusiastically agreed.
+
+An independent counsel was designed to operate at arm's length from the executive branch, to undertake investigations where the Justice Department would have a clear conflict of interest; the contemplated *locus classicus* would be *a la* Watergate, where it was necessary to undertake an investigation of allegations of criminal wrongdoing by a close political associate of the Attorney-General, such as the President or persons close to the President.^[28 U.S.C. $\S$ 591(b) prescribed a list of persons subject to the law's provisions, including the President and Vice President, the Cabinet, the Executive Office of the President, and high-level officials in DOJ, the CIA, the IRS, and the President's national election campaign.]  
+
+Under the Act, the Attorney-General would request a panel of three judges - a "[Special Division](http://www.pbs.org/wgbh/pages/frontline/shows/counsel/office/special.html)" of the D.C. Circuit of the Federal judiciary^[Its members selected by the Chief Justice of the Supreme Court.] - to choose an independent counsel. A president could not dismiss an independent counsel, who enjoyed a high degree of autonomy and secrecy with respect to the conduct of the investigation, resources and staffing.   Independent counsel were obliged to report to Congress at least annually on their progress and had discretion on what and when to disclose to the public.  The independent counsel had the authority to transmit to Congress any information he or she deemed relevant.  Importantly, the Act required the independent counsel to "advise the House of Representatives of any substantial and credible information...that may constitute grounds for an impeachment."^[28 U.S.C. $\S$ 595(c). A thorough review of the law governing the Office of Independent Counsel at the time is Benjamin J. Priesier, Paul G. Rozelle, Mirah A. Horowitz, "The Independent Counsel Statute: A Legal History", [*Law and Contemporary Problems*](http://www.law.duke.edu/journals/62LCPPriester), 62(1): 5-109 (Winter 1999).] 
+
+Reno asked that Fiske be reappointed as independent counsel under the revived Act, an "upgrade" of sorts from his appointment as a special counsel under the Justice Department.^[See David Johnston, "Reno Wants to Reappoint Fiske Under a New Law", [*New York Times*](http://www.nytimes.com/1994/07/02/us/reno-wants-to-reappoint-fiske-under-a-new-law.html), 2 July 1994.]   The Special Division disagreed, stating that Fiske's reappointment "would not be consistent with the purposes of the [Independent Counsel Reauthorization] Act".^["As Fiske was appointed by the incumbent administration, the Court therefore deems it in the best interest of the appearance of independence contemplated by the Act that a person not affiliated with the incumbent administration be appointed."  *In re: Madison Guaranty Savings & Loan Association,* Division Number 94-1, D.C. Circuit (Special Division), 5 August 1994.]  
+
+The Special Division appointed Kenneth Starr to take over as independent counsel of the Whitewater matter.    Starr had served as counsellor to President Reagan's Attorney-General and then as Solicitor-General in the Bush administration.   Almost immediately, Democrats raised questions about Starr's independence, along with that of the judges appointing Starr in place of Fiske.^[e.g., see Chapter 2 of Benjamin Wittes (2002), *Starr: a reassessment*, Yale University Press: New Haven, Connecticut.]  Starr requested and was granted authority to examine the death of Vince Foster, the first of several expansions of Starr's investigation.
+
+Congressional investigations of Whitewater continued at the same time.  In early 1994, after the Clinton administration appointed Fiske, Congressional Republicans were clamouring for more action from Congressional committees with Democratic majorities.  According to a media report at the time^[Michael Wines, "G.O.P. to Get Peek at Clinton Land Deal", [*New York Times*](http://www.nytimes.com/1994/02/02/us/gop-to-get-peek-at-clinton-land-deal.html), 2 February 1994.]
+
+> Republicans had hoped for separate hearings into Whitewater, but those hopes faded when a special prosecutor was named to look into the affair earlier this month. Many legislators worried that a formal inquiry with immunized witnesses could impede a criminal investigation, just as 1987 hearings on the Iran-Contra affair hamstrung subsequent trials in that scandal.
+
+<!-- An early casualty of Whitewater was Clinton's Deputy Treasury Secretary Roger Altman, who resigned on 17 August 1994 after inconsistencies were revealed in testimony he had provided to the Senate.^[See Keith Bradsher, "Altman Resigns His Post Amid Whitewater Clamor", [*New York Times*](http://www.nytimes.com/1994/08/18/us/altman-resigns-his-post-amid-whitewater-clamor.html), 18 August 1995.]   -->
+ 
+<!-- On 3 January 1995, the outgoing Democratic majority of the Senate Banking Committee released a report finding no laws were broken in Whitewater, but criticised Clinton administration officials for being less than candid with Congress.   -->
+<!-- The Republican minority went much further, asserting that "the White House had improperly manipulated regulatory agencies and received information about criminal investigations that should have remained secret".^[Stephan Labaton, "Senate Reports on Whitewater Offer Glimpse of Partisan Battling Still in Store", [*New York Times*](http://www.nytimes.com/1995/01/04/us/senate-reports-on-whitewater-offer-glimpse-of-partisan-battling-still-in-store.html), 3 January 1995.]       -->
+
+Republicans won control of both houses of Congress in the 1994 midterm elections.  On 17 May 1995, the U.S. Senate established the Senate Whitewater Committee^[Officially known as the "Special Committee to Investigate Whitewater Development Corporation and Related Matters," the Committee was created by a [96-3 vote](https://www.congress.gov/bill/104th-congress/senate-resolution/120).] chaired by Republican Senator Alfonse D'Amato (NY).^[D'Amato was also chair of Bob Dole's 1996 presidential election campaign.]  The Senate Whitewater Committee would sit for hundreds of hours over 13 months and produce a [report](https://www.congress.gov/104/crpt/srpt280/CRPT-104srpt280.pdf) of over 600 pages on 17 June 1996, issue many subpoenas and demand (with mixed success) documents from both the White House^[e.g., see Stephen Labaton, "Senate Whitewater Panel Seeks More Documents From Clintons", [*New York Times*](http://www.nytimes.com/1995/10/27/us/senate-whitewater-panel-seeks-more-documents-from-clintons.html), 27 October 1995.]  and the Starr investigation.
+
+In the summer of 1995, Monica Lewinsky graduated from college and joined the White House staff as an unpaid intern, accepting a paid position in November.  Lewinsky left the White House in April 1996, but was a frequent visitor to the White House through to the end of 1997.  Starr, the Congress and the media were focussed on Whitewater and other matters up until late 1997.
+
+Charges of bank fraud were brought against the McDougals and Arkansas governor Jim Guy Tucker^[Tucker was Bill Clinton's successor as Arkansas Governor and had been Hillary Clinton's colleague at the Rose Law Firm.] in August 1995. They were convicted in May 1996.^[Bill Clinton testified by video tape as a defense witness.   In January 2001, in the the final hours of his presidency, Clinton issued a pardon to Susan McDougal.   James McDougal died in prison in March 1998.]  Starr first interviewed both Clintons in April 1995.   Long missing documents^[Fiske had originally subpoenaed the Clintons for the documents in May 1994.] detailing work done by Hillary Clinton at the Rose Law Firm for McDougal's S&L surfaced in January 1996; Starr subpoenaed Hillary Clinton to determine if the documents were intentionally withheld.  A second Whitewater trial began in June 1996, this time ending in acquittals.^[Bill Clinton again testified as a defense witness.]  
+
+In early 1997 Starr announced he would resign as independent counsel^[Stephen Labaton, "Starr Offers Broad Defense Of His Decision to Resign," [*New York Times*](http://www.nytimes.com/1997/02/20/us/starr-offers-broad-defense-of-his-decision-to-resign.html), 20 February 1997.] and many thought the saga of independent investigations into the Clinton White House was winding down.  Within days, and after "heavy criticism from some prominent Republicans",^[Senator Arlen Specter (R-PA) reminded Starr that Congress had deferred its own investigations into Whitewater-related matters in deference to Mr. Starr and that Starr's resignation would have a "very serious, if not devastating, effect on the investigation."]  Starr reversed his decision.^[Stephen Labaton, "In Turnaround, Starr says he'll complete his inquiry as Whitewater prosecutor," [*New York Times*](http://www.nytimes.com/1997/02/22/us/in-turnaround-starr-says-he-ll-complete-his-inquiry-as-whitewater-prosecutor.html), 22 February 1997.]   Starr postponed taking up a deanship at Pepperdine University, finally declining the Pepperdine appointment in April 1998.^[Stephen Labaton, "Starr Foresees No Quick End To His Inquiry", [*New York Times*](http://www.nytimes.com/1998/04/17/us/starr-foresees-no-quick-end-to-his-inquiry.html), April 17, 1998.]
+
+## Paula Jones and Monica Lewinsky
+
+On 6 May 1994, Paula Jones filed a civil suit against President Clinton in U.S. District Court in Arkansas, seeking damages for (a) sexual harassment and assault by Clinton, alleged to have taken place in May 1991, (b) defaming Jones by denying the accusations.   Clinton's defense included a claim that a private litigant could not sue a sitting President.   This claim worked its ways through the courts over almost three years; in May 1997 the Supreme Court which unanimously rejected the Clinton claim.   *Jones vs Clinton* was set for trial in May 1998.   
+
+Part of the Jones legal strategy was to demonstrate a pattern of behaviour by Clinton, that the allegation of Clinton's harassment and assault of Jones was credible because other women had similar episodes to report.   To this end, Jones' legal team deposed Dolly Kyle Browning, Gennifer Flowers and Kathleen Wiley in October 1997.   
+
+By July 1997, Lewinsky had confided her relationship with Clinton to her co-worker, Linda Tripp.  Tripp began taping her phone conversations with Lewinsky in September 1997.  In October 1997, the Jones legal team received anonymous tips about a sexual relationship between Lewinsky and Clinton^[Rene Sanchez and David Segal, "Mysterious Links Permeate Lewinsky, Jones Allegations", [*Washington Post*](http://www.washingtonpost.com/wp-srv/politics/special/clinton/stories/tripp013198.htm), January 31, 1998.].   Tripp was subpoenaed in the Jones case in November and Lewinsky in December 1997.  It was later revealed that Lewinsky was regularly visiting or communicating with Clinton and Clinton adviser Vernon Jordon about Lewinsky's relationship with Tripp and securing employment and legal representation for Lewinsky.  On 7 January 1998, [Lewinsky filed an affadavit](http://www.washingtonpost.com/wp-srv/politics/special/pjones/docs/lewinskyaffidavit.htm) - later revealed to be knowingly false and conceived in concert with Tripp - denying any sexual relationship with Clinton.  On 12 January 1998, Tripp turned over her taped conversations with Lewinsky to Starr.   
+
+Three days later, Starr requested that his investigation be expanded; [Attorney-General Reno petitioned the Special Division](http://www.washingtonpost.com/wp-srv/politics/special/clinton/stories/text012998.htm) accordingly.  On 16 January 1998 the Special Division granted Starr authority to investigate^[[*In re Madison Guaranty Savings and Loan Association*](http://edition.cnn.com/icreport/report/volume2/volume26.html), D.C. Circuit Special Division, Jan 16 1998.]   
+
+- "whether Monica Lewinsky or others suborned perjury, obstructed justice, intimidated witnesses, or otherwise violated federal law...concerning the civil case *Jones vs Clinton*." 
+- "related violations of federal criminal law...including any person or entity who has engaged in unlawful conspiracy or who has aided and abetted any federal offense."
+- "any obstruction of the due administration of justice, or any material false testimony or statement in violation of federal criminal law."
+
+The next day, Clinton was deposed in the Jones suit.   [Clinton testified](http://www.washingtonpost.com/wp-srv/politics/special/pjones/docs/dephigh031398.htm#lewinsky) that he did not have sexual relations with Lewinsky, according to a specific definition of "sexual relations" handed to him by Lewinsky's attorneys.  
+
+Finally, on 21 January 1998, news of the Lewinsky scandal broke in mainstream media.^[[The Drudge Report](http://www.drudgereportarchives.com/data/2002/01/17/20020117_175502_ml.htm) first alluded to the Lewinsky scandal on January 17 1998.]  Clinton denied a encouraging Lewinsky to lie in her *Jones* affidavit and denied any affair with Lewinsky.^["All Things Considered", National Public Radio, 21 January 1998; "The News Hour with Jim Lehrer", Public Broadcasting System, 21 January 1998.]   Clinton famously issued [a televised denial](https://en.wikipedia.org/wiki/File:Response_to_the_Lewinsky_Allegations_(January_26,_1998)_Bill_Clinton.ogv) on 26 January.  
+
+On 29 January, in response to a motion from Starr, the judge presiding in the Jones suit ruled that [all evidence relating to Lewinsky be excluded](http://www.washingtonpost.com/wp-srv/politics/special/clinton/stories/judgetext012998.htm) in deference to Starr's investigation.   In April 1998, [the Jones suit was dismissed](http://www.washingtonpost.com/wp-srv/politics/special/clinton/opinion.pdf).   Starr's investigation continued.
+
+In July and August, Lewinsky was questioned by Starr and his staff over 15 days, after an agreement was negotiated granting her immunity.   Lewinsky [admitted](http://edition.cnn.com/ALLPOLITICS/1998/07/28/lewinsky/) to the Starr investigation that she did have a sexual relationship with Clinton.   
+
+On August 18, 1998, Clinton testified to a grand jury convened by Starr that he had had an intimate relationship with Lewinsky. [In a televised address](http://www.washingtonpost.com/wp-srv/politics/special/clinton/stories/text081898.htm) that evening, Clinton conceded that his testimony in the Jones case was "legally accurate" but that he "did not volunteer information."^[In April 1999 Clinton was [held in civil contempt of court](http://www.nytimes.com/1999/04/13/us/clinton-is-found-to-be-in-contempt-on-jones-lawsuit.html) over misleading testimony in the Jones case and fined \$90,000.   In April 2000 Clinton's right to practice law in Arkansas was suspended; [Clinton agreed to a five year suspension](http://www.washingtonpost.com/wp-srv/aponline/20010119/aponline132649_000.htm) and a fine of \$25,000.  In October 2001 [the Supreme Court of the United States disbarred Clinton](https://www.theguardian.com/world/2001/oct/02/duncancampbell); Clinton [resigned](http://articles.latimes.com/2001/nov/11/news/mn-2733) from the bar of the Supreme Court.]   Clinton further conceded that he "did have a relationship with Miss Lewinsky that was not appropriate."   Clinton went on to attack the (dismissed) Jones lawsuit as "politically inspired" and that he had "real and serious concerns" about Starr's inquiry that began with "private business dealings 20 years ago" and had since "moved on to my staff and friends, then into my private life." 
+   
+## Starr's Report
+
+Starr submitted a lengthy report on the Lewinsky matter to the House of Representatives on 9 September 1998,^[The House resolved to make the report public on 11 September 1998; [H. Res. 525 (1998)](https://www.gpo.gov/fdsys/pkg/BILLS-105hres525rh/pdf/BILLS-105hres525rh.pdf).]  which came to be known simply as the "[Starr Report](https://www.gpo.gov/fdsys/pkg/CDOC-105hdoc310/pdf/CDOC-105hdoc310.pdf)."   With the possible exception of the U.S. Constitution, it is perhaps the most widely read document ever produced by the U.S. government and dominated best-seller lists in the weeks after its publication.^[Jamie Allen, "Starr-Clinton matter sparks hot-selling book and video", [CNN.com](http://www.cnn.com/books/news/9809/22/starr.report.folo/index.html), 22 September 1998.]  Details of Clinton and Lewinsky's sexual encounters saw the document flagged with cautions about its "explicit content" and were no doubt key to the report's popularity.^[Starr's rationale for including these intimate details is worth revisiting: "It is the view of this Office that the details are crucial to an informed evaluation of the testimony, the credibility of witnesses, and the reliability of other evidence. Many of the details reveal highly personal information; many are sexually explicit. This is unfortunate, but it is essential. The President's defense to many of the allegations is based on a close parsing of the definitions that were used to describe his conduct. We have, after careful review, identified no manner of providing the information that reveals the falsity of the President???s statements other than to describe his conduct with precision" (p9, [H.D. 105-310](https://www.gpo.gov/fdsys/pkg/CDOC-105hdoc310/pdf/CDOC-105hdoc310.pdf)).]  Starr sought - and was granted - permission from the courts to release Clinton's grand jury testimony^[Although it was not clear that an independent counsel required court permission to do release grand jury testimony.] and some [four hours of video of Clinton's grand jury testimony](https://www.c-span.org/video/?111990-1/presidential-grand-jury-testimony) - in which he conceded having an inappropriate, intimate relationship with Lewinsky - aired on national television on 21 September 1998.^[Peter Baker and Susan Schmidt, "Clinton Decries Attempt to `Set Me Up'", [*Washington Post*](http://www.washingtonpost.com/wp-srv/politics/special/clinton/stories/president092298.htm), 22 September 1998.]
+
+As for the timing of his report to Congress, Starr noted that he had wished to complete his investigations before deciding whether to submit to Congress information (if any) that might constitute grounds for impeachment.  But, said Starr, "events and the statutory command of Section 595(c) have dictated otherwise":
+
+> As the investigation into the President's actions with respect to Ms. Lewinsky and the Jones litigation progressed, it became apparent that there was a significant body of substantial and credible information that met the Section 595(c) threshold. As that phase of the investigation neared completion, it also became apparent that a delay of this Referral until the evidence from all phases of the investigation had been evaluated would be unwise. Although Section 595(c) does not specify when information must be submitted, its text strongly suggests that information of this type belongs in the hands of Congress as soon as the Independent Counsel determines that the information is reliable and substantially complete. (p9, [H.D. 105-310](https://www.gpo.gov/fdsys/pkg/CDOC-105hdoc310/pdf/CDOC-105hdoc310.pdf))
+
+Starr's inquiry did not conclude with the submission of the report on the Lewinsky matter to Congress, nor did it preclude Starr from bringing criminal prosecutions. Starr ultimately decided not to prosecute any of the parties named in his report on the Lewinsky matter.
+
+<!-- Starr listed eleven possible ground for impeachment.^[pp 129-130, [H.D. 105-310](https://www.gpo.gov/fdsys/pkg/CDOC-105hdoc310/pdf/CDOC-105hdoc310.pdf)]   These included:  -->
+
+<!-- - that Clinton had committed perjury while testifying about his relationship with Lewinsky;  -->
+<!-- - that Clinton had obstructed justice by concealing gifts given to Lewinsky and destroying an intimate note given to him by Lewinsky;  -->
+<!-- - that Clinton had committed perjury in denying that he ever had a conversation with his adviser Vernon Jordan about Lewinsky's role in the Paula Jones lawsuit;  -->
+<!-- - that Clinton had abused power in (a) denying the relationship with Lewinsky had ever occurred; (b) using executive privilege to cover up the Lewinsky relationship; (c) delaying his grand jury testimony; (d) directing the Secret Service to participate in a cover-up of the Lewinsky relationship.   -->
+
+
+
+
+
+
+
+
+<!-- # The impeachment of Andrew Johnson. -->
+<!-- 1868; 11 articles of impeachment.   Failed by one vote. -->
