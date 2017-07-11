@@ -543,15 +543,6 @@ print(foo)
 ```
 
 ```{r}
-class(Napp.pid$date)
-as.Date(as.character(as.POSIXct(Napp.pid$date)))
-class(Napp.pid$date)
-```
-```{r}
-class(Napp.pid$date)
-```
-
-```{r}
 library(dplyr)
 library(ggplot2)
 Napp.pid <- app.pid %>%
@@ -589,7 +580,6 @@ ggplot() +  geom_line(data=Tapp.pid, aes(x=date, y=dem_app), color=ussc_darkBlue
 
 
 `r margin_note(paste(figr('pres_approval_pid',TRUE,link=FALSE,type='Figure'),"Presidential approval among in-party partisans, as measured in Gallup surveys, Trump compared with other presidents at comparable stage of their respective presidencies.",sep=": "))`
-
 ```{r}
 ## fix app.pid codings of when presidents start
 #app.pid <- readxl::read_excel(path="../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
@@ -641,11 +631,16 @@ app.pid <- app.pid %>%
   ungroup()
 
 dop.max <- max(app.pid$dop[app.pid$President==12]) + 5
-
-app.pid <- subset(app.pid, dop <= dop.max)
 ```
 
-```{r early_inparty_approval}
+```{r}
+Trump_app <- app.pid %>%
+  slice(119:141)
+ggplot(app.pid) + geom_line(aes(x=dop, y=inparty_app, group=presName)) 
+```
+
+```{r}
+app.pid <- subset(app.pid, dop <= dop.max)
 hc <- highchart(width="800px",height="800px") %>% 
   hc_add_theme(hc_theme_merge(hc_theme_538(),
                               mytheme)) %>%
@@ -727,13 +722,10 @@ print(hc)
 
 saveWidget(hc,file="hc_03.html",selfcontained = FALSE)
 
-```
-
-
-```{r}
 library(ggplot2)
 app.pid %>%
   date>="2017-01-20"
 ggplot(data=app.pid, aes(x=date, y=inparty_app, group=President)) + geom_line()
 ```
+
 
