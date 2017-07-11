@@ -72,7 +72,7 @@ mytheme <- theme_bw(base_family="univers") +
         legend.title = element_text(size=9,family="univers"),
         legend.key.size = unit(x = 9,units = "pt")
         )
-
+theme_set(mytheme)
 ```
 
 ## Presidental approval: Nixon, Clinton and Trump
@@ -309,7 +309,7 @@ print(foo)
 ```{r}
 library(ggplot2)
 
-ggplot(nixon)+geom_rect(data=nixon, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1973-10-30", "%Y-%m-%d"), xmax=as.Date("1974-07-30", "%Y-%m-%d")), fill="#FF9999", inherit.aes = FALSE) + geom_line(aes(x=midDate, y=approve)) + ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + scale_y_continuous(limits = c(20, 80)) +  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings ", size=2.5)
+ggplot(nixon)+ geom_rect(data=nixon, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1973-10-30", "%Y-%m-%d"), xmax=as.Date("1974-07-30", "%Y-%m-%d")), fill="#FF9999", inherit.aes = FALSE) + geom_line(aes(x=midDate, y=approve)) + ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + scale_y_continuous(limits = c(20, 80)) +  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings ", size=2.5)
 ggsave("nixonapproval-ggplot2.jpg")
 ```
 ```{r}
@@ -636,7 +636,7 @@ dop.max <- max(app.pid$dop[app.pid$President==12]) + 5
 ```{r}
 Trump_app <- app.pid %>%
   slice(119:141)
-ggplot(app.pid) + geom_line(aes(x=dop, y=inparty_app, group=presName)) 
+ggplot(app.pid) + geom_line(aes(x=dop, y=inparty_app, group=presName)) + geom_line(data=Trump_app, (aes(x=dop, y=inparty_app, size=10, color=ussc_red))) + xlab("Month") + ylab("In party approval rating") + theme(legend.position = "none") + ggtitle("Trump approval among in-party partisans, compared with Eisenhower \nto Obama.")
 ```
 
 ```{r}
@@ -726,6 +726,9 @@ library(ggplot2)
 app.pid %>%
   date>="2017-01-20"
 ggplot(data=app.pid, aes(x=date, y=inparty_app, group=President)) + geom_line()
+```
+```{r}
+
 ```
 
 
