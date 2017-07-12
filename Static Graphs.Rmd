@@ -2,11 +2,14 @@
 title: "static graphs"
 author: "Zoe Meers"
 date: "11 July 2017"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warnings=FALSE, message=FALSE}
 library(knitr)
 library(tufte)
 library(kfigr)
@@ -21,14 +24,38 @@ library(highcharter)
 library(htmltools)
 library(yaml)
 
+ussc_lightBlue <- rgb(0,157,227,maxColorValue = 255)
+ussc_darkBlue <- rgb(28,57,110,maxColorValue = 255)
+ussc_red <- rgb(237,27,53,maxColorValue = 255)
+colorVector <- c("D"=ussc_lightBlue,"R"=ussc_red)
+colorVector2 <- c("Dem"=ussc_lightBlue,"Rep"=ussc_red)
+
+ussc_lightBlue_alpha <- rgb(0,157,227,alpha=185,maxColorValue = 255)
+ussc_darkBlue_alpha <- rgb(28,57,110,alpha=185,maxColorValue = 255)
+ussc_red_alpha <- rgb(237,27,53,alpha=185,maxColorValue = 255)
+
+univers <- quartzFont(paste("Univers LT Pro",
+                            c("55 Roman","65 Bold","55 Roman","65 Bold")))
+
+
+quartzFonts(univers=univers)
+
+
+mytheme <- theme_bw(base_family="univers") + 
+  theme(plot.margin = unit(c(2,2,2,2),"pt"),
+        text=element_text(family="univers"),
+        strip.text = element_text(size=9),
+        axis.title.x = element_text(size=9,family = "univers"),
+        axis.title.y = element_text(size=9,family="univers"),
+        axis.text.x = element_text(size = 9),
+        axis.text.y = element_text(size = 7),
+        legend.text = element_text(size=9,family="univers"),
+        legend.title = element_text(size=9,family="univers"),
+        legend.key.size = unit(x = 9,units = "pt")
+        )
 ```
-## Presidental approval: Nixon, Clinton and Trump
 
-In `r figr('pres_approval',TRUE,link=FALSE,type='Figure')` we contrast levels of presidential approval for Nixon and Clinton, as measured by Gallup surveys, highlighting the periods when Congress was actively considering impeachment for both presidents.   Approval for Donald Trump is also shown (in red), time shifted so as to align with the corresponding point of the Nixon and Clinton presidential terms, respectively.
-
-`r margin_note(paste(figr('pres_approval',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump (overlaid in red, time-shifted to align with corresponding point of their respective presidential terms).  Shaded areas indicate time interval when Congress was considering impeachment and/or Senate trial (Clinton).",sep=": "))`
-
-```{r pres_approval}
+```{r pres_approval, include=FALSE, warnings=FALSE, message=FALSE}
 ##fig.cap=paste(figr('pres_approval',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump (overlaid in red, time-shifted to align with corresponding point of their respective presidential terms).  Shaded areas indicate time interval when Congress was considering impeachment and/or Senate trial (Clinton).",sep=": ")} 
 nixon <- scan(file="~/Trump-Impeachment/Nixon/approval.txt",
               strip.white = TRUE,
@@ -52,488 +79,138 @@ clinton.inaug <- as.Date("1993-01-20")
 load("~/Trump-Impeachment/Trump/approval.RData")
 approval$who <- "Trump"
 trump.inaug <- as.Date("2017-01-20")
-
-## stack for plotting
-plotData <- rbind.fill(list(nixon,clinton,approval))
-
-mytheme <- hc_theme(
-  chart = list(
-    style=list(
-      fontFamily="Univers LT Std"
-      )
-  ),
-  xAxis = list(
-    labels=list(
-      style=list(
-        fontFamily="Univers LT Std"
-      )
-    )
-  ),
-  yAxis = list(
-    labels=list(
-      style=list(
-        fontFamily="Univers LT Std"
-      )
-    )
-  )
-)
-
-hc <- highchart(width="500px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-hc <- hc %>%
-  hc_add_series(data=nixon,
-                name="Nixon",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_lightBlue,
-                mapping=hcaes(x=midDate,
-                              y=approve)) %>%
-    hc_add_series(data=subset(approval,survey_house=="Gallup"),
-                  enableMouseTracking=FALSE,
-                name="Trump",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                mapping=hcaes(x=midDate-trump.inaug+nixon.inaug,
-                              y=as.numeric(Approve)))
-
-hc <- hc %>% 
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Nixon",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-  hc_xAxis(title="",
-           type="datetime",
-           minRange=1,
-           crosshair=TRUE,
-           plotBands = list(
-             list(from=datetime_to_timestamp(as.Date("1973-10-30")),
-                  to=datetime_to_timestamp(as.Date("1974-07-30")),
-                  color="rgba(100,0,0,0.1)",
-                  label=list(text="House<br>Judiciary<br>Committee<br>investigation<br>and<br>hearings",
-                             useHTML=TRUE,
-                             align="left")
-             )
-           ),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=20,max=80,startOnTick=TRUE,
-           tickPositions=seq(20,80,by=10),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-hc$x$conf_opts$global$timezoneOffset <- -10*3600
-hc$x$conf_opts$global$useUTC <- FALSE
-
-hc_nixon <- hc
-
-## Clinton
-rm(hc)
-hc <- highchart(width="500px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-hc <- hc %>%
-  hc_add_series(data=clinton,
-                name="Clinton",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_lightBlue,
-                mapping=hcaes(x=midDate,y=as.numeric(approve))) %>%
-  hc_add_series(data=subset(approval,survey_house=="Gallup"),
-                name="Trump",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                enableMouseTracking=FALSE,
-                mapping=hcaes(x=midDate-trump.inaug+clinton.inaug,
-                              y=as.numeric(Approve)))
-
-hc <- hc %>% 
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Clinton",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             useHTML=TRUE,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-  hc_xAxis(title="",
-           type="datetime",
-           minRange=1,
-           crosshair=TRUE,
-           plotBands = list(
-             list(from=datetime_to_timestamp(as.Date("1998-09-09")),
-                  to=datetime_to_timestamp(as.Date("1999-02-12")),
-                  color="rgba(100,0,0,0.1)",
-                  label=list(text="Impeachment deliberations<br>and Senate trial",
-                             useHTML=TRUE,
-                             align="right",
-                             textAlign="left"
-                  )
-             )
-           ),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=20,max=80,startOnTick=TRUE,
-           tickPositions=seq(20,80,by=10),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-hc$x$conf_opts$global$timezoneOffset <- -10*3600
-hc$x$conf_opts$global$useUTC <- FALSE
-hc$width <- 600
-
-hc_clinton <- hc
-
-mygrid <- function (..., ncol = NULL, rowheight = NULL) 
-{
-  require(purrr)
-    input_list <- as.list(substitute(list(...)))[-1L]
-    params <- list()
-    for (i in 1:length(input_list)) {
-        x <- eval.parent(input_list[[i]])
-        if (any(class(x) == "list")) {
-            for (j in 1:length(x)) {
-                y <- eval(x[[j]])
-                params[[length(params) + 1]] <- y
-            }
-        }
-        else {
-            params[[length(params) + 1]] <- x
-        }
-    }
-    if (!all(sapply(params, function(x) inherits(x, "htmlwidget")))) 
-        stop("All parameters must be htmlwidget objects")
-    if (is.null(ncol)) 
-        ncol <- n2mfrow(length(params))[1]
-    if (ncol > 12) 
-        ncol <- 12
-    ncolm <- floor(ncol/2)
-    divs <- map(params, function(x) {
-        x$width <- "65%"
-        if (!is.null(rowheight)) 
-            x$height <- rowheight
-        tags$div(class = sprintf("col-1-%s mobile-col-1-%s", 
-            ncol, ncolm), x)
-    })
-    divgrid <- tags$div(class = "grid grid-pad", style = "width: 100%", 
-        divs)
-    class(divgrid) <- c(class(divgrid), "htmlwdwtgrid")
-    divgrid
-}
-
-foo <- mygrid(hc_nixon,
-               hc_clinton,
-               ncol=1,
-               rowheight=400)
-
-saveWidget(hc_nixon,file="hc_nixon_01.html",selfcontained = FALSE)
-saveWidget(hc_clinton,file="hc_clinton_01.html",selfcontained = FALSE)
-
-print(foo)
-```
-
-```{r}
-library(ggplot2)
-
-ggplot()+ geom_rect(data=nixon, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1973-10-30", "%Y-%m-%d"), xmax=as.Date("1974-07-30", "%Y-%m-%d")), fill="#FF9999", inherit.aes = FALSE, alpha=0.008) + geom_line(data=nixon, aes(x=midDate, y=approve)) + ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + scale_y_continuous(limits = c(20, 80)) +  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings ", size=2.5) + geom_line()
-
-```
-```{r}
-library(dplyr)
-Tapproval <- approval %>%
+Trump.approve.percent <- approval %>%
   filter(survey_house=="Gallup")
 
+Trump.approve.percent$newdat3 <- Trump.approve.percent$midDate-trump.inaug+nixon.inaug
+Trump.approve.percent$newdate6 <- Trump.approve.percent$midDate-trump.inaug+clinton.inaug
 
-ggplot() + geom_rect(data=clinton, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1998-09-09", "%Y-%m-%d"), xmax=as.Date("1999-02-12", "%Y-%m-%d")), fill="#FF9999", inherit.aes=FALSE, alpha=0.008) + geom_line(data=clinton, aes(x=midDate, y=as.numeric(approve))) + ggtitle("Clinton") + xlab("Year") + ylab("Approval Rating (%)") +  scale_x_date(date_labels= "%y", date_breaks = "1 year") + scale_y_continuous(limits = c(20, 80)) +  annotate("text",x=as.Date("2000-01-01", "%Y-%m-%d"), y=80, label="Impeachment deliberation\n and Senate trial", size=2.5) #+ geom_line(data=Tapproval, aes(x=clinton$MidDate-trump.inaug+clinton.inaug, y=as.numeric(Approve)))
-ggsave("clintonapproval-ggplot2.jpg")
-#Add Trump approval ratings to graph (see commented bit above)
 ```
 
 
-`r margin_note(paste(figr('pres_approval_pid',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump, by party identification of respondent.",sep=": "))`
 
-```{r}
+
+```{r, echo=FALSE}
+library(ggplot2)
+library(grDevices)
+
+Nixon.app.rate <- ggplot()+ 
+  geom_rect(data=nixon, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1973-10-30", "%Y-%m-%d"), xmax=as.Date("1974-07-30", "%Y-%m-%d")), fill='#FF9999', alpha=0.008) + 
+  geom_line(data=nixon,  size=1, aes(x=midDate, y=approve, color="Nixon")) + 
+  ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + 
+  scale_y_continuous(limits = c(20, 80)) +  
+  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings", size=2.5) + 
+  geom_line(data=Trump.approve.percent, size=1, aes(x=newdat3, y=Approve, color = "Trump"))+
+  scale_color_manual(values = c(Nixon=ussc_lightBlue, Trump=ussc_red)) + mytheme + 
+  theme(legend.title=element_blank(), legend.position = "bottom") 
+Nixon.app.rate
+```
+```{r, echo=FALSE}
+Clinton.app.rate <- ggplot() + 
+  geom_rect(data=clinton, aes(ymin= -Inf, ymax = Inf, xmin=as.Date("1998-09-09", "%Y-%m-%d"), xmax=as.Date("1999-02-12", "%Y-%m-%d")), fill='#FF9999', alpha=0.008) + 
+  geom_line(data=clinton,  size=1, aes(x=midDate, y=as.numeric(approve), color="Clinton")) + 
+  ggtitle("Clinton") + xlab("Year") + ylab("Approval Rating (%)") +  
+  scale_x_date(date_labels= "%y", date_breaks = "1 year") + 
+  scale_y_continuous(limits = c(20, 80)) + 
+  annotate("text",x=as.Date("2000-01-01", "%Y-%m-%d"), y=80, label="Impeachment deliberation\n and Senate trial", size=2.5) + 
+  mytheme + 
+  geom_line(data=Trump.approve.percent,  size=1, aes(x=newdate6, y=as.numeric(Approve), color="Trump")) + scale_color_manual(values = c(Clinton=ussc_lightBlue, Trump=ussc_red)) + 
+  theme(legend.title=element_blank(), legend.position = "bottom")
+Clinton.app.rate
+ggsave("clintonapproval-ggplot2.jpg")
+
+```
+
+
+
+
+```{r, include=FALSE, warnings=FALSE, message=FALSE}
 library(readxl)
 app.pid <- readxl::read_excel(path="~/Trump-Impeachment/Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
 names(app.pid)[1] <- "date"
 
-hc <- highchart(width="500px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
-                name="Republicans",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=rep_app)) %>%
-  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
-                name="Independents",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=gray(.35),
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=ind_app)) %>%
-  hc_add_series(data=subset(app.pid,President==4 & date >= nixon.inaug),
-                name="Democrats",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_darkBlue,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=dem_app)) %>%
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Nixon",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-  hc_xAxis(title="",
-           type="datetime",
-           minRange=1,
-           crosshair=TRUE,
-           plotBands = list(
-             list(from=datetime_to_timestamp(as.Date("1973-10-30")),
-                  to=datetime_to_timestamp(as.Date("1974-07-30")),
-                  color="rgba(100,0,0,0.1)",
-                  label=list(text="House<br>Judiciary<br>Committee<br>investigation<br>and<br>hearings",
-                             useHTML=TRUE,
-                             align="left")
-             )
-           ),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=0,max=100,startOnTick=FALSE,
-           tickPositions=seq(0,100,by=10),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-hc$x$conf_opts$global$timezoneOffset <- -10*3600
-hc$x$conf_opts$global$useUTC <- FALSE
-
-hc_nixon <- hc
-
-## Clinton
-hc <- highchart(width="500px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
-                name="Republicans",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=rep_app)) %>%
-  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
-                name="Independents",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=gray(.35),
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=ind_app)) %>%
-  hc_add_series(data=subset(app.pid,President==9 & date >= clinton.inaug),
-                name="Democrats",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_darkBlue,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=dem_app)) %>%
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Clinton",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-    hc_xAxis(title="",
-           type="datetime",
-           minRange=1,
-           crosshair=TRUE,
-           plotBands = list(
-             list(from=datetime_to_timestamp(as.Date("1998-09-09")),
-                  to=datetime_to_timestamp(as.Date("1999-02-12")),
-                  color="rgba(100,0,0,0.1)",
-                  label=list(text="Impeachment deliberations<br>and Senate trial",
-                             useHTML=TRUE,
-                             verticalAlign="bottom",
-                             y=8,
-                             align="right",
-                             textAlign="left"
-                  )
-             )
-           ),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=0,max=100,startOnTick=FALSE,
-           tickPositions=seq(0,100,by=10),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-hc$x$conf_opts$global$timezoneOffset <- -10*3600
-hc$x$conf_opts$global$useUTC <- FALSE
-
-hc_clinton <- hc
-
-## Trump
-hc <- highchart(width="500px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
-                name="Republicans",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=rep_app)) %>%
-  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
-                name="Independents",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=gray(.35),
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=ind_app)) %>%
-  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
-                name="Democrats",
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_darkBlue,
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=dem_app)) %>%
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Trump",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-    hc_xAxis(title="",
-           type="datetime",
-           minRange=1,
-           crosshair=TRUE,
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=0,max=100,startOnTick=FALSE,
-           tickPositions=seq(0,100,by=10),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-hc$x$conf_opts$global$timezoneOffset <- -10*3600
-hc$x$conf_opts$global$useUTC <- FALSE
-
-hc_trump <- hc
-
-foo <- mygrid(hc_nixon,
-               hc_clinton,
-              hc_trump,
-               ncol=1,
-               rowheight=500)
-
-
-saveWidget(hc_nixon,file="hc_nixon_02.html",selfcontained = FALSE)
-saveWidget(hc_clinton,file="hc_clinton_02.html",selfcontained = FALSE)
-saveWidget(hc_trump,file="hc_trump_02.html",selfcontained = FALSE)
-
-print(foo)
 ```
 
-```{r}
+```{r, include=FALSE, warnings=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
 Napp.pid <- app.pid %>%
   filter(President==4) %>%
   filter(date >=nixon.inaug)
-class(Napp.pid$date)
-xstart <- as.POSIXct("1973-10-30")
 
 ```
 
 
-```{r}
-ggplot()  +  geom_rect(data=Napp.pid, aes(ymin= -Inf, ymax = Inf, xmin=as.POSIXct("1973-10-30"), xmax=as.POSIXct("1974-07-30")), fill="#FF9999", inherit.aes = FALSE, alpha=0.008) + geom_line(data=Napp.pid, aes(x=date, y=dem_app), color=ussc_darkBlue) + geom_line(data=Napp.pid, aes(x=date, y=ind_app), color="gray") + geom_line(data=Napp.pid, aes(x=date, y=rep_app), color=ussc_red) + ggtitle("Nixon")  + xlab("Year") + ylab("Approval rating by\n party identification") + scale_y_continuous(limits = c(0,100)) + annotate(data = nixon, "text", x=as.POSIXct("1974-03-06 UTC"), y=75, label="House Judiciary Committee\n investigation and hearings", size=2.5)
+```{r, echo=FALSE, warnings=FALSE, message=FALSE}
+#nixon, party ID app rate
+nixon.pid <- ggplot()  +  
+  geom_rect(data=Napp.pid, aes(ymin= -Inf, ymax = Inf, xmin=as.POSIXct("1973-10-30"), xmax=as.POSIXct("1974-07-30")), fill="#FF9999", alpha=0.008) + 
+  geom_line(data=Napp.pid, aes(x=date, y=dem_app, color="Democrats"),  size=1) + 
+  geom_line(data=Napp.pid, aes(x=date, y=ind_app, color='Independents'), size=1) + 
+  geom_line(data=Napp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
+  ggtitle("Nixon")  + xlab("Year") + ylab("Approval rating by\n party identification") + 
+  scale_y_continuous(limits = c(0,100)) + annotate(data = nixon, "text", x=as.POSIXct("1974-03-06 UTC"), y=75, label="House Judiciary Committee\n investigation and hearings", size=2.5) + 
+  mytheme  + 
+  scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
+  theme(legend.title=element_blank(), legend.position = "bottom")
+nixon.pid
 ```
 
 
-```{r}
+```{r, echo=FALSE, warnings=FALSE, message=FALSE}
 library(dplyr)
 library(ggplot2)
 Capp.pid <- app.pid %>%
   filter(President==9) %>%
   filter(date >=clinton.inaug)
-ggplot() + geom_rect(data=Capp.pid, aes(ymin= -Inf, ymax = Inf, xmin=as.POSIXct("1998-08-09"), xmax=as.POSIXct("1999-01-06")), fill="#FF9999", inherit.aes=FALSE, alpha=0.008) + geom_line(data=Capp.pid, aes(x=date, y=dem_app), color=ussc_darkBlue) + geom_line(data=Capp.pid, aes(x=date, y=ind_app), color="gray") + geom_line(data=Capp.pid, aes(x=date, y=rep_app), color=ussc_red) + ggtitle("Clinton")  + xlab("Year") + ylab("Approval rating by\n party identification") + scale_y_continuous(limits = c(0,100)) +  annotate(data = Capp.pid, "text",x=as.POSIXct("1999-01-06"), y=99, label="Impeachment deliberation\n and Senate trial", size=2.5)
 
+#Clinton party ID app. rating
+clinton.pid <- ggplot() + 
+  geom_rect(data=Capp.pid, aes(ymin= -Inf, ymax = Inf, xmin=as.POSIXct("1998-08-09"), xmax=as.POSIXct("1999-01-06")), fill="#FF9999", alpha=0.008) +
+  geom_line(data=Capp.pid, aes(x=date, y=dem_app, color="Democrats"), size=1) + 
+  geom_line(data=Capp.pid, aes(x=date, y=ind_app, color="Independents"), size=1) + 
+  geom_line(data=Capp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
+  ggtitle("Clinton")  + xlab("Year") + ylab("Approval rating by\n party identification") + 
+  scale_y_continuous(limits = c(0,100)) +  
+  annotate(data = Capp.pid, "text",x=as.POSIXct("1999-01-06"), y=99, label="Impeachment deliberation\n and Senate trial") + 
+  mytheme +   
+  scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
+  theme(legend.title=element_blank(), legend.position = "bottom")
 
-
+clinton.pid
 
 ```
 
 
-```{r}
+```{r, echo=FALSE}
 library(dplyr)
 library(ggplot2)
 Tapp.pid <- app.pid %>%
   filter(President==12) %>%
   filter(date >=trump.inaug)
-ggplot() +  geom_line(data=Tapp.pid, aes(x=date, y=dem_app), color=ussc_darkBlue) + geom_line(data=Tapp.pid, aes(x=date, y=ind_app), color="gray") + geom_line(data=Tapp.pid, aes(x=date, y=rep_app), color=ussc_red) + ggtitle("Trump") + xlab("Month") + ylab("Approval rating by\n party identification") + scale_y_continuous(limits = c(0,100))
 
+
+Trump.partyID <- ggplot() +  
+  geom_line(data=Tapp.pid, aes(x=date, y=dem_app, color="Democrats"), size=1) + 
+  geom_line(data=Tapp.pid, aes(x=date, y=ind_app, color="Independents"), size=1) + 
+  geom_line(data=Tapp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
+  ggtitle("Trump") + xlab("Month") + ylab("Approval rating by\n party identification") + 
+  scale_y_continuous(limits = c(0,100)) + mytheme  + 
+  scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
+  theme(legend.title=element_blank(), legend.position = "bottom")
+Trump.partyID
+```
+```{r, echo=FALSE}
+library(gridExtra)
+a <- arrangeGrob(nixon.pid, clinton.pid, Trump.partyID, nrow=3)
+ggsave("partyID.jpg", a, width=6, height=8)
 ```
 
 
 
-`r margin_note(paste(figr('pres_approval_pid',TRUE,link=FALSE,type='Figure'),"Presidential approval among in-party partisans, as measured in Gallup surveys, Trump compared with other presidents at comparable stage of their respective presidencies.",sep=": "))`
-```{r}
+```{r, include=FALSE}
 ## fix app.pid codings of when presidents start
-#app.pid <- readxl::read_excel(path="../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
+# <- readxl::read_excel(path="../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
 names(app.pid)[1] <- "date"
 
 app.pid$President[app.pid$date>as.Date("1963-12-08") & app.pid$date<as.Date("1969-01-21")] <- 3 ## Johnson
@@ -584,104 +261,28 @@ app.pid <- app.pid %>%
 dop.max <- max(app.pid$dop[app.pid$President==12]) + 5
 ```
 
-```{r, fig.width=7}
+
+
+```{r, include=FALSE}
+app.pid <- subset(app.pid, dop <= dop.max)
+```
+
+```{r, echo=FALSE, message=FALSE, warnings=FALSE}
 Trump_app <- app.pid %>%
   filter(President==12)
 
 comp.app.pid <- app.pid %>%
   filter(dop<=163)
 
-ggplot() + geom_line(data = comp.app.pid, aes(x=dop, y=inparty_app, group=presName)) + geom_line(data=Trump_app, (aes(x=dop, y=inparty_app, size=10, color=ussc_red_alpha))) + xlab("Days of Presidency ") + ylab("In-party approval rating")+ theme_bw() + theme(legend.position = "none") + ggtitle("Trump approval among in-party partisans, compared with Eisenhower to Obama")
+Trump.app.comp <- ggplot() + 
+  geom_line(data = comp.app.pid, aes(x=dop, y=inparty_app, group=presName, color="Other Presidents")) + 
+  geom_line(data=Trump_app, size=2, (aes(x=dop, y=inparty_app, color="Trump"))) + 
+  xlab("Days of Presidency ") + ylab("In-party approval rating (%)") + theme_bw() + 
+  ggtitle("Trump approval among in-party partisans, compared with\n Eisenhower to Obama") + 
+  mytheme +
+  scale_color_manual(values = c(Trump=ussc_red, 'Other Presidents' = 'black')) + 
+  theme(legend.title=element_blank(), legend.position = "bottom")
+
+Trump.app.comp
 ```
-
-```{r}
-app.pid <- subset(app.pid, dop <= dop.max)
-hc <- highchart(width="800px",height="800px") %>% 
-  hc_add_theme(hc_theme_merge(hc_theme_538(),
-                              mytheme)) %>%
-  hc_exporting(enabled=FALSE)
-
-
-for(i in 1:11){
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==i & 
-                              date >= inaug.dates[i] & 
-                              dop <= dop.max),
-                name=presName[i],
-                showInLegend=FALSE,
-                type = "line",
-                step="left",
-                linecap="square",
-                color="rgba(0,0,20,.25)",
-                marker=list(),
-                states=list(hover=list(lineColor="black",
-                                       lineWidthPlus=7)),
-                mapping=hcaes(x=datetime_to_timestamp(inaug.dates[12]) + 
-                                datetime_to_timestamp(date) - 
-                                datetime_to_timestamp(inaug.dates[i]),
-                              y=inparty_app))
-}
-
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
-                name="Trump",
-                showInLegend=FALSE,
-                type = "line",
-                step="left",
-                linecap="square",
-                color=ussc_red,
-                lineWidth=9,
-                marker=list(symbol="circle",
-                            radius=0,
-                            lineWidth=0,
-                            states=list(hover=list(radiusPlus=9,
-                                                   fillColor="black",
-                                                   lineColor="white",
-                                                   lineWidthPlus=3)
-                                        )
-                            ),
-                states=list(hover=list(lineWidthPlus=3)),
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=inparty_app)
-  ) %>%
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{series.name}: {point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Univers LT Std, Helvetica, sans-serif")) %>%
-  hc_xAxis(title="",
-           type="datetime",
-           dateTimeLabelFormats=list(day="%d %b",
-                                     week="%e %b"),
-           minRange=1,
-           minPadding=0,
-           maxPadding=0,
-           crosshair=TRUE,
-           min=datetime_to_timestamp(inaug.dates[12]),
-           max=datetime_to_timestamp(max(app.pid$date) + 3*24*3600),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=55,max=95,
-           startOnTick=FALSE,
-           tickPositions=seq(55,95,by=5),
-           labels=list(style="{font-family: Univers LT Std, Helvetica, sans-serif;}"))
-
-print(hc)
-
-saveWidget(hc,file="hc_03.html",selfcontained = FALSE)
-
-library(ggplot2)
-app.pid %>%
-  date>="2017-01-20"
-ggplot(data=app.pid, aes(x=date, y=inparty_app, group=President)) + geom_line()
-```
-
-
 
