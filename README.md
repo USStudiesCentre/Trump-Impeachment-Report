@@ -1,5 +1,5 @@
 # Trump-Impeachment
-USSC report on why Trump will not be impeached.
+USSC report on why President Trump will not be impeached.
 
 
 This report was authored by Simon Jackman, the CEO of the US Studies Centre at the University of Sydney. 
