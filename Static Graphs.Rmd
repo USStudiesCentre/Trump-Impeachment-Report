@@ -3,8 +3,6 @@ title: "static graphs"
 author: "Zoe Meers"
 date: "11 July 2017"
 output:
-  word_document: default
-  pdf_document: default
   html_document: default
 ---
 
@@ -105,9 +103,6 @@ Nixon.app.rate <- ggplot()+
   theme(legend.title=element_blank(), legend.position = "bottom") 
 Nixon.app.rate
 
-quartz(file="Nixon.app.rate", type=pdf, width=4.86, height=9.3)
-plot(Nixon.app.rate) 
-dev.off()
 ```
 ```{r, echo=FALSE}
 Clinton.app.rate <- ggplot() + 
@@ -121,7 +116,6 @@ Clinton.app.rate <- ggplot() +
   geom_line(data=Trump.approve.percent,  size=1, aes(x=newdate6, y=as.numeric(Approve), color="Trump")) + scale_color_manual(values = c(Clinton=ussc_lightBlue, Trump=ussc_red)) + 
   theme(legend.title=element_blank(), legend.position = "bottom")
 Clinton.app.rate
-dev.copy2pdf(file="Clinton-approval.pdf")
 ```
 
 
@@ -204,12 +198,7 @@ Trump.partyID
 
 ```
 
-```{r, echo=FALSE}
-library(gridExtra)
-a <- arrangeGrob(nixon.pid, clinton.pid, Trump.partyID, nrow=3)
-quartz(file="grid-partyID", type=pdf, height=155/25.4, width=186/25.4)
-dev.off()
-```
+
 
 
 
@@ -289,9 +278,6 @@ Trump.app.comp <- ggplot() +
   theme(legend.title=element_blank(), legend.position = "bottom")
 Trump.app.comp
 
-quartz(file="TrumpIpp", type = pdf, width=4.86, height=9.3)
-plot(Trump.app.comp) 
-dev.off()
 
 ```
 
