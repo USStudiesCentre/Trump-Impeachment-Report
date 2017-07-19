@@ -54,7 +54,6 @@ mytheme <- theme_bw(base_family="univers") +
 ```
 
 ```{r pres_approval, include=FALSE, warnings=FALSE, message=FALSE}
-##fig.cap=paste(figr('pres_approval',TRUE,link=FALSE,type='Figure'),"Presidential approval as measured in Gallup surveys, for Presidents Nixon, Clinton and Trump (overlaid in red, time-shifted to align with corresponding point of their respective presidential terms).  Shaded areas indicate time interval when Congress was considering impeachment and/or Senate trial (Clinton).",sep=": ")} 
 nixon <- scan(file="~/Trump-Impeachment/Nixon/approval.txt",
               strip.white = TRUE,
               what=list(startDate="",endDate="",
@@ -97,7 +96,7 @@ Nixon.app.rate <- ggplot()+
   geom_line(data=nixon,  size=1, aes(x=midDate, y=approve, color="Nixon")) + 
   ggtitle("Nixon") + xlab("Year") + ylab("Approval Rating (%)") + scale_x_date(date_labels= "%y", date_breaks = "1 year")  + 
   scale_y_continuous(limits = c(20, 80)) +  
-  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings", size=2.5) + 
+  annotate("text", x=as.Date("1974-04-01", "%Y-%m-%d"), y=75, label="House Judiciary Committee\n investigation and hearings", size=2.3) + 
   geom_line(data=Trump.approve.percent, size=1, aes(x=newdat3, y=Approve, color = "Trump"))+
   scale_color_manual(values = c(Nixon=ussc_lightBlue, Trump=ussc_red)) + mytheme + 
   theme(legend.title=element_blank(), legend.position = "bottom") 
@@ -145,11 +144,11 @@ nixon.pid <- ggplot()  +
   geom_line(data=Napp.pid, aes(x=date, y=dem_app, color="Democrats"),  size=1) + 
   geom_line(data=Napp.pid, aes(x=date, y=ind_app, color='Independents'), size=1) + 
   geom_line(data=Napp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
-  ggtitle("Nixon") + xlab("")+ ylab("Approval rating by\n party identification") + 
+  ggtitle("Nixon") + xlab("")+ ylab("") + 
   scale_y_continuous(limits = c(0,100)) + annotate(data = nixon, "text", x=as.POSIXct("1974-03-06 UTC"), y=95, label="House Judiciary Committee\n investigation and hearings", size=2.5) + 
   mytheme  + 
   scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
-  theme(legend.title=element_blank(), legend.position = "bottom")
+  theme(legend.title=element_blank(), legend.position = "none")
 nixon.pid
 ```
 
@@ -167,12 +166,12 @@ clinton.pid <- ggplot() +
   geom_line(data=Capp.pid, aes(x=date, y=dem_app, color="Democrats"), size=1) + 
   geom_line(data=Capp.pid, aes(x=date, y=ind_app, color="Independents"), size=1) + 
   geom_line(data=Capp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
-  ggtitle("Clinton") + xlab("") +ylab("Approval rating by\n party identification") + 
+  ggtitle("Clinton") + xlab("") +ylab("Approval rating (%)") + 
   scale_y_continuous(limits = c(0,100)) +  
   annotate(data = Capp.pid, "text",x=as.POSIXct("1999-01-06"), y=15, label="Impeachment deliberation\n and Senate trial", size=2.5) + 
   mytheme +   
   scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
-  theme(legend.title=element_blank(), legend.position = "bottom")
+  theme(legend.title=element_blank(), legend.position = "none")
 clinton.pid
 
 ```
@@ -190,7 +189,7 @@ Trump.partyID <- ggplot() +
   geom_line(data=Tapp.pid, aes(x=date, y=dem_app, color="Democrats"), size=1) + 
   geom_line(data=Tapp.pid, aes(x=date, y=ind_app, color="Independents"), size=1) + 
   geom_line(data=Tapp.pid, aes(x=date, y=rep_app, color="Republicans"), size=1) + 
-  ggtitle("Trump") + xlab("") +ylab("Approval rating by\n party identification") + 
+  ggtitle("Trump") + xlab("") +ylab("") + 
   scale_y_continuous(limits = c(0,100)) + mytheme  + 
   scale_color_manual(values = c(Democrats=ussc_darkBlue, Republicans=ussc_red, Independents ='black')) + 
   theme(legend.title=element_blank(), legend.position = "bottom")
@@ -198,7 +197,14 @@ Trump.partyID
 
 ```
 
+<<<<<<< HEAD
 
+=======
+```{r, echo=FALSE}
+library(gridExtra)
+a <- arrangeGrob(nixon.pid, clinton.pid, Trump.partyID, nrow=3)
+```
+>>>>>>> 1f9560d25cc9942922ac04cd80cc75840012eb13
 
 
 
@@ -272,7 +278,7 @@ Trump.app.comp <- ggplot() +
   geom_line(data = comp.app.pid, aes(x=dop, y=inparty_app, group=presName, color="Other Presidents")) + 
   geom_line(data=Trump_app, size=2, (aes(x=dop, y=inparty_app, color="Trump"))) + 
   xlab("Days of Presidency ") + ylab("In-party approval rating (%)") + theme_bw() + 
-  ggtitle("Trump approval among in-party partisans, compared with Eisenhower\n to Obama") + 
+  ggtitle("Trump approval among in-party partisans, compared with\n Eisenhower to Obama") + 
   mytheme +
   scale_color_manual(values = c(Trump=ussc_red, 'Other Presidents' = 'black')) + 
   theme(legend.title=element_blank(), legend.position = "bottom")
