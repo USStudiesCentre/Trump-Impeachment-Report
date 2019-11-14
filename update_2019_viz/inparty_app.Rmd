@@ -1,0 +1,274 @@
+```{r, include = FALSE, echo = FALSE}
+library(knitr)
+library(tufte)
+library(kfigr)
+library(plyr)
+library(dplyr)
+library(grDevices)
+library(ggplot2)
+library(grid)
+
+library(htmlwidgets)
+library(highcharter)
+library(htmltools)
+library(yaml)
+
+Sys.setenv(TZ="Australia/Sydney")
+
+
+nixon.inaug <- as.Date("1969-01-20")
+clinton.inaug <- as.Date("1993-01-20")
+trump.inaug <- as.Date("2017-01-20")
+
+mytheme <- hc_theme(
+  chart = list(
+    style=list(
+      fontFamily="Halis GR"
+    )
+  ),
+  xAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Halis GR"
+      )
+    )
+  ),
+  yAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Halis GR"
+      )
+    )
+  )
+)
+
+app.pid <- readxl::read_excel(path="../../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
+names(app.pid)[1] <- "date"
+
+load("../../Trump/approval.RData")
+# gapp$date <- gapp$mydate
+# gapp$dates <- NULL
+# gapp$mydate <- NULL
+gapp$President <- 12
+
+gapp$rep_app <- gapp$Republicans
+gapp$Republicans <- NULL
+
+gapp$dem_app <- gapp$Democrats
+gapp$Democrats <- NULL
+
+gapp$ind_app <- gapp$Independents
+gapp$Independents <- NULL
+
+app.pid <- app.pid[app.pid$President!=12,]
+app.pid <- plyr::rbind.fill(app.pid,gapp)
+
+
+app.pid$rep_app <- as.numeric(app.pid$rep_app)
+app.pid$dem_app <- as.numeric(app.pid$dem_app)
+app.pid$ind_app <- as.numeric(app.pid$ind_app)
+
+## make thr graphs
+hc <- highchart(width="800px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+```
+
+```{r, echo = FALSE}
+
+###############################################
+## Trump in-party approval compared with others
+###############################################
+
+app.pid$President[app.pid$date>as.Date("1963-12-08") & app.pid$date<as.Date("1969-01-21")] <- 3 ## Johnson
+app.pid$President[app.pid$date>as.Date("1977-01-20") & app.pid$date<as.Date("1981-01-20")] <- 6 ## Carter
+app.pid$President[app.pid$date>as.Date("1981-01-20") & app.pid$date<as.Date("1989-01-20")] <- 7 ## Reagan
+app.pid$President[app.pid$date>as.Date("1989-01-20") & app.pid$date<as.Date("1993-01-20")] <- 8 ## Bush
+
+app.pid$inparty_app <- rep(NA,dim(app.pid)[1])
+app.pid$inparty_app[app.pid$President==1] <- app.pid$rep_app[app.pid$President==1] ## Ike
+app.pid$inparty_app[app.pid$President==2] <- app.pid$dem_app[app.pid$President==2] ## JFK
+app.pid$inparty_app[app.pid$President==3] <- app.pid$dem_app[app.pid$President==3] ## LBJ
+app.pid$inparty_app[app.pid$President==4] <- app.pid$rep_app[app.pid$President==4] ## RMN
+app.pid$inparty_app[app.pid$President==5] <- app.pid$rep_app[app.pid$President==5] ## Ford
+app.pid$inparty_app[app.pid$President==6] <- app.pid$dem_app[app.pid$President==6] ## Carter
+app.pid$inparty_app[app.pid$President==7] <- app.pid$rep_app[app.pid$President==7] ## Reagan
+app.pid$inparty_app[app.pid$President==8] <- app.pid$rep_app[app.pid$President==8] ## GHWB
+app.pid$inparty_app[app.pid$President==9] <- app.pid$dem_app[app.pid$President==9] ## WJC
+app.pid$inparty_app[app.pid$President==10] <- app.pid$rep_app[app.pid$President==10] ## W
+app.pid$inparty_app[app.pid$President==11] <- app.pid$dem_app[app.pid$President==11] ## Obama
+app.pid$inparty_app[app.pid$President==12] <- app.pid$rep_app[app.pid$President==12] ## Trump
+
+inaug.dates <- as.Date(c("1953-01-20","1961-01-20","1963-11-22",
+                         "1969-01-20","1974-08-09",
+                         paste(c(1977,1981,1989,1993,2001,2009,2017),
+                               "-01-20",sep="")))
+app.pid <- ddply(app.pid,.(date),
+                 summarise,
+                 date=date[1],
+                 President=President[1],
+                 inparty_app=mean(inparty_app))
+
+
+presName <- c("Ike","JFK","LBJ",
+              "Nixon","Ford","Carter",
+              "Reagan","GHWB","Clinton",
+              "GWB","Obama","Trump")
+
+app.pid <- merge(app.pid,
+                 data.frame(idate=as.POSIXct(inaug.dates),
+                            presName=presName,President=1:12),
+                 by="President")
+
+app.pid <- app.pid %>%
+  group_by(President) %>%
+  mutate(date = as.POSIXct(lubridate::as_date(date))) %>% 
+  mutate(dop1 = difftime(date, idate,units = "days"),
+         dop = gsub("\\sdays", "", dop1),
+         dop = as.numeric(dop)) %>% 
+  ungroup()
+
+dop.max <- max(app.pid$dop[app.pid$President==12]) + 5
+
+app.pid <- subset(app.pid, dop <= dop.max)
+
+hc <- highchart(width="600px",height="600px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+for(i in 1:11){
+  hc <- hc %>%
+    hc_add_series(data=subset(app.pid,President==i & 
+                                date >= inaug.dates[i] & 
+                                dop <= dop.max),
+                  name=presName[i],
+                  showInLegend=FALSE,
+                  type = "line",
+                  step="left",
+                  linecap="square",
+                  color="rgba(0,0,20,.25)",
+                  marker=list(),
+                  states=list(hover=list(lineColor="black",
+                                         lineWidthPlus=7)),
+                  mapping=hcaes(x=datetime_to_timestamp(inaug.dates[12]) + 
+                                  datetime_to_timestamp(date) - 
+                                  datetime_to_timestamp(inaug.dates[i]),
+                                y=inparty_app))
+}
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Trump",
+                showInLegend=FALSE,
+                type = "line",
+                step="left",
+                linecap="square",
+                color= ussc::ussc_colours("Trump"),
+                lineWidth=9,
+                marker=list(symbol="circle",
+                            radius=0,
+                            lineWidth=0,
+                            states=list(hover=list(radiusPlus=9,
+                                                   fillColor="black",
+                                                   lineColor="white",
+                                                   lineWidthPlus=3)
+                            )
+                ),
+                states=list(hover=list(lineWidthPlus=3)),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=inparty_app)
+  ) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{series.name}: {point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Halis GR, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           dateTimeLabelFormats=list(day="%d %b",
+                                     week="%e %b"),
+           minRange=1,
+           minPadding=0,
+           maxPadding=0,
+           crosshair=TRUE,
+           min=datetime_to_timestamp(inaug.dates[12]),
+           max=datetime_to_timestamp(max(app.pid$date) + 3*24*3600),
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=55,max=95,
+           startOnTick=FALSE,
+           tickPositions=seq(55,95,by=5),
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}"))
+
+
+hc <- hchart(app.pid, 
+             
+       hcaes(y = inparty_app, group = presName, x = dop),
+       showInLegend=FALSE, names = "Others",
+       type = "line",
+       step="left",
+       linecap="square",
+       color="rgba(0,0,20,.25)",
+       marker=list(),
+       states=list(hover=list(lineColor="black",
+                              lineWidthPlus=7))) %>% 
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Trump",
+                showInLegend=FALSE,
+                type = "line",
+                step="left",
+                linecap="square",
+                color= ussc::ussc_colours("Trump"),
+                lineWidth=9,
+                marker=list(symbol="circle",
+                            radius=0,
+                            lineWidth=0,
+                            states=list(hover=list(radiusPlus=9,
+                                                   fillColor="black",
+                                                   lineColor="white",
+                                                   lineWidthPlus=3)
+                            )
+                ),
+                states=list(hover=list(lineWidthPlus=3)),
+                mapping=hcaes(x=dop,
+                              y=inparty_app)
+  ) %>% hc_yAxis(title = list(text = "Approval"),
+           min=0,max=100,
+           startOnTick=FALSE,
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>% 
+  hc_xAxis(title = list(text = "Days of Presidency"),
+           min=0,max=1000,
+           startOnTick=FALSE,
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>% 
+  # hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{series.name}: {point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Halis GR, Helvetica, sans-serif")) %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>% 
+  hc_size(width="800px",height="600px")
+
+hc
+
+#saveWidget(hc,file="hc_03.html",selfcontained = FALSE)
+
+```
+

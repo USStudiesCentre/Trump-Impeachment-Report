@@ -1,0 +1,141 @@
+```{r, include = FALSE, echo = FALSE}
+library(knitr)
+library(tufte)
+library(kfigr)
+library(plyr)
+library(dplyr)
+library(grDevices)
+library(ggplot2)
+library(grid)
+
+library(htmlwidgets)
+library(highcharter)
+library(htmltools)
+library(yaml)
+
+Sys.setenv(TZ="Australia/Sydney")
+
+
+nixon.inaug <- as.Date("1969-01-20")
+clinton.inaug <- as.Date("1993-01-20")
+trump.inaug <- as.Date("2017-01-20")
+
+mytheme <- hc_theme(
+  chart = list(
+    style=list(
+      fontFamily="Halis GR"
+    )
+  ),
+  xAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Halis GR"
+      )
+    )
+  ),
+  yAxis = list(
+    labels=list(
+      style=list(
+        fontFamily="Halis GR"
+      )
+    )
+  )
+)
+
+app.pid <- readxl::read_excel(path="../../Nixon/Gallup Presidential Approval by Party ID, 1953-2017.xls")
+names(app.pid)[1] <- "date"
+
+load("../../Trump/approval.RData")
+# gapp$date <- gapp$mydate
+# gapp$dates <- NULL
+# gapp$mydate <- NULL
+gapp$President <- 12
+
+gapp$rep_app <- gapp$Republicans
+gapp$Republicans <- NULL
+
+gapp$dem_app <- gapp$Democrats
+gapp$Democrats <- NULL
+
+gapp$ind_app <- gapp$Independents
+gapp$Independents <- NULL
+
+app.pid <- app.pid[app.pid$President!=12,]
+app.pid <- plyr::rbind.fill(app.pid,gapp)
+
+
+app.pid$rep_app <- as.numeric(app.pid$rep_app)
+app.pid$dem_app <- as.numeric(app.pid$dem_app)
+app.pid$ind_app <- as.numeric(app.pid$ind_app)
+
+## make thr graphs
+hc <- highchart(width="800px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+```
+
+```{r,  echo = FALSE}
+
+## Trump
+hc <- highchart(width="800px") %>% 
+  hc_add_theme(hc_theme_merge(hc_theme_538(),
+                              mytheme)) %>%
+  hc_exporting(enabled=FALSE)
+
+hc <- hc %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Republicans",
+                type = "line",
+                step="left",
+                linecap="square",
+                color=ussc::ussc_colours("republicans"),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=rep_app)) %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Independents",
+                type = "line",
+                step="left",
+                linecap="square",
+                color= "#c0c0c0",
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=ind_app)) %>%
+  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+                name="Democrats",
+                type = "line",
+                step="left",
+                linecap="square",
+                color= ussc::ussc_colours("dark blue"),
+                mapping=hcaes(x=datetime_to_timestamp(date),
+                              y=dem_app)) %>%
+  hc_navigator(enabled=TRUE) %>%
+  hc_title(text="Trump approval, Gallup polls, weekly aggregates, by party-id.",
+           align="left") %>%
+  hc_tooltip(valueDecimals=0,
+             shared = FALSE,
+             backgroundColor ="rgba(0,0,0,.55)",
+             xDateFormat="%d %b %Y",
+             pointFormat="{point.y}%",
+             style=list("z-index"="9998",
+                        color="white",
+                        fontWeight="normal",
+                        fontFamily="Halis GR, Helvetica, sans-serif")) %>%
+  hc_xAxis(title="",
+           type="datetime",
+           minRange=1,
+           crosshair=TRUE,
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>%
+  hc_yAxis(title="Approval",
+           min=0,max=100,startOnTick=FALSE,
+           tickPositions=seq(0,100,by=10),
+           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}"))
+
+hc$x$conf_opts$global$timezoneOffset <- -10*3600
+hc$x$conf_opts$global$useUTC <- FALSE
+
+hc_trump <- hc
+
+hc_trump
+```
+
