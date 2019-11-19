@@ -138,90 +138,97 @@ hc <- highchart(width="600px",height="600px") %>%
   hc_add_theme(hc_theme_merge(hc_theme_538(),
                               mytheme)) %>%
   hc_exporting(enabled=FALSE)
-
-for(i in 1:11){
-  hc <- hc %>%
-    hc_add_series(data=subset(app.pid,President==i & 
-                                date >= inaug.dates[i] & 
-                                dop <= dop.max),
-                  name=presName[i],
-                  showInLegend=FALSE,
-                  type = "line",
-                  step="left",
-                  linecap="square",
-                  color="rgba(0,0,20,.25)",
-                  marker=list(),
-                  states=list(hover=list(lineColor="black",
-                                         lineWidthPlus=7)),
-                  mapping=hcaes(x=datetime_to_timestamp(inaug.dates[12]) + 
-                                  datetime_to_timestamp(date) - 
-                                  datetime_to_timestamp(inaug.dates[i]),
-                                y=inparty_app))
-}
-
-hc <- hc %>%
-  hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
-                name="Trump",
-                showInLegend=FALSE,
-                type = "line",
-                step="left",
-                linecap="square",
-                color= ussc::ussc_colours("Trump"),
-                lineWidth=9,
-                marker=list(symbol="circle",
-                            radius=0,
-                            lineWidth=0,
-                            states=list(hover=list(radiusPlus=9,
-                                                   fillColor="black",
-                                                   lineColor="white",
-                                                   lineWidthPlus=3)
-                            )
-                ),
-                states=list(hover=list(lineWidthPlus=3)),
-                mapping=hcaes(x=datetime_to_timestamp(date),
-                              y=inparty_app)
-  ) %>%
-  hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
-           align="left") %>%
-  hc_tooltip(valueDecimals=0,
-             shared = FALSE,
-             backgroundColor ="rgba(0,0,0,.55)",
-             xDateFormat="%d %b %Y",
-             pointFormat="{series.name}: {point.y}%",
-             style=list("z-index"="9998",
-                        color="white",
-                        fontWeight="normal",
-                        fontFamily="Halis GR, Helvetica, sans-serif")) %>%
-  hc_xAxis(title="",
-           type="datetime",
-           dateTimeLabelFormats=list(day="%d %b",
-                                     week="%e %b"),
-           minRange=1,
-           minPadding=0,
-           maxPadding=0,
-           crosshair=TRUE,
-           min=datetime_to_timestamp(inaug.dates[12]),
-           max=datetime_to_timestamp(max(app.pid$date) + 3*24*3600),
-           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>%
-  hc_yAxis(title="Approval",
-           min=55,max=95,
-           startOnTick=FALSE,
-           tickPositions=seq(55,95,by=5),
-           labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}"))
+# 
+# for(i in 1:11){
+#   hc <- hc %>%
+#     hc_add_series(data=subset(app.pid,President==i & 
+#                                 date >= inaug.dates[i] & 
+#                                 dop <= dop.max),
+#                   name=presName[i],
+#                   showInLegend=FALSE,
+#                   type = "line",
+#                   step="left",
+#                   linecap="square",
+#                   color="rgba(0,0,20,.25)",
+#                   marker=list(),
+#                   states=list(hover=list(lineColor="black",
+#                                          lineWidthPlus=7)),
+#                   mapping=hcaes(x=datetime_to_timestamp(inaug.dates[12]) + 
+#                                   datetime_to_timestamp(date) - 
+#                                   datetime_to_timestamp(inaug.dates[i]),
+#                                 y=inparty_app))
+# }
+# 
+# hc <- hc %>%
+#   hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
+#                 name="Trump",
+#                 showInLegend=FALSE,
+#                 type = "line",
+#                 step="left",
+#                 linecap="square",
+#                 color= ussc::ussc_colours("Trump"),
+#                 lineWidth=9,
+#                 marker=list(symbol="circle",
+#                             radius=0,
+#                             lineWidth=0,
+#                             states=list(hover=list(radiusPlus=9,
+#                                                    fillColor="black",
+#                                                    lineColor="white",
+#                                                    lineWidthPlus=3)
+#                             )
+#                 ),
+#                 states=list(hover=list(lineWidthPlus=3)),
+#                 mapping=hcaes(x=datetime_to_timestamp(date),
+#                               y=inparty_app)
+#   ) %>%
+#   hc_navigator(enabled=TRUE) %>%
+#   hc_title(text="Trump approval among in-party partisans, compared with Eisenhower to Obama.",
+#            align="left") %>%
+#   hc_tooltip(valueDecimals=0,
+#              shared = FALSE,
+#              backgroundColor ="rgba(0,0,0,.55)",
+#              xDateFormat="%d %b %Y",
+#              pointFormat="{series.name}: {point.y}%",
+#              style=list("z-index"="9998",
+#                         color="white",
+#                         fontWeight="normal",
+#                         fontFamily="Halis GR, Helvetica, sans-serif")) %>%
+#   hc_xAxis(title="",
+#            type="datetime",
+#            dateTimeLabelFormats=list(day="%d %b",
+#                                      week="%e %b"),
+#            minRange=1,
+#            minPadding=0,
+#            maxPadding=0,
+#            crosshair=TRUE,
+#            min=datetime_to_timestamp(inaug.dates[12]),
+#            max=datetime_to_timestamp(max(app.pid$date) + 3*24*3600),
+#            labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}")) %>%
+#   hc_yAxis(title="Approval",
+#            min=55,max=95,
+#            startOnTick=FALSE,
+#            tickPositions=seq(55,95,by=5),
+#            labels=list(style="{font-family: Halis GR, Helvetica, sans-serif;}"))
 
 
 hc <- hchart(app.pid, 
-             
        hcaes(y = inparty_app, group = presName, x = dop),
        showInLegend=FALSE, names = "Others",
        type = "line",
        step="left",
        linecap="square",
        color="rgba(0,0,20,.25)",
-       marker=list(),
+       marker=list(symbol="circle",
+                            radius=0,
+                            lineWidth=0,
+                            states=list(hover=list(radiusPlus=9,
+                                                   fillColor="black",
+                                                   lineColor="white",
+                                                   lineWidthPlus=2)
+                            )
+                ),
        states=list(hover=list(lineColor="black",
-                              lineWidthPlus=7))) %>% 
+                              lineWidthPlus=1.5))) %>% 
   hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
                 name="Trump",
                 showInLegend=FALSE,
@@ -229,17 +236,17 @@ hc <- hchart(app.pid,
                 step="left",
                 linecap="square",
                 color= ussc::ussc_colours("Trump"),
-                lineWidth=9,
+                lineWidth = 5,
                 marker=list(symbol="circle",
                             radius=0,
                             lineWidth=0,
                             states=list(hover=list(radiusPlus=9,
                                                    fillColor="black",
                                                    lineColor="white",
-                                                   lineWidthPlus=3)
+                                                   lineWidthPlus=1.5)
                             )
                 ),
-                states=list(hover=list(lineWidthPlus=3)),
+                states=list(hover=list(lineWidthPlus=1.5)),
                 mapping=hcaes(x=dop,
                               y=inparty_app)
   ) %>% hc_yAxis(title = list(text = "Approval"),
@@ -264,7 +271,7 @@ hc <- hchart(app.pid,
                         fontFamily="Halis GR, Helvetica, sans-serif")) %>% 
   hc_add_theme(hc_theme_merge(hc_theme_538(),
                               mytheme)) %>% 
-  hc_size(width="800px",height="600px")
+  hc_size(width="730px",height="600px")
 
 hc
 
