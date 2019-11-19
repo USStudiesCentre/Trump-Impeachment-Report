@@ -69,7 +69,7 @@ app.pid$dem_app <- as.numeric(app.pid$dem_app)
 app.pid$ind_app <- as.numeric(app.pid$ind_app)
 
 ## make thr graphs
-hc <- highchart(width="800px") %>% 
+hc <- highchart(width="730px") %>% 
   hc_add_theme(hc_theme_merge(hc_theme_538(),
                               mytheme)) %>%
   hc_exporting(enabled=FALSE)
@@ -79,7 +79,7 @@ hc <- highchart(width="800px") %>%
 ```{r,  echo = FALSE}
 
 ## Trump
-hc <- highchart(width="800px") %>% 
+hc <- highchart(width="730px") %>% 
   hc_add_theme(hc_theme_merge(hc_theme_538(),
                               mytheme)) %>%
   hc_exporting(enabled=FALSE)
