@@ -90,7 +90,7 @@ hc <- hc %>%
                 type = "line",
                 step="left",
                 linecap="square",
-                color=ussc::ussc_colours("republicans"),
+                color="#ed1b35",
                 mapping=hcaes(x=datetime_to_timestamp(date),
                               y=rep_app)) %>%
   hc_add_series(data=subset(app.pid,President==12 & date >= trump.inaug),
