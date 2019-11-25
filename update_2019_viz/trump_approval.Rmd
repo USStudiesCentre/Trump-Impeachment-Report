@@ -110,7 +110,7 @@ hc <- hc %>%
                 mapping=hcaes(x=datetime_to_timestamp(date),
                               y=dem_app)) %>%
   hc_navigator(enabled=TRUE) %>%
-  hc_title(text="Trump approval, Gallup polls, weekly aggregates, by party-id.",
+  hc_title(text="Trump",
            align="left") %>%
   hc_tooltip(valueDecimals=0,
              shared = FALSE,
